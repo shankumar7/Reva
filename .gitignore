@@ -1,0 +1,27 @@
+# Secrets - never commit
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+google-services.json
+GoogleService-Info.plist
+secrets/
+keys/
+*.secret
+pairing*
+# Build / deps
+node_modules/
+dist/
+build/
+.expo/
+android/app/build/
+android/.gradle/
+*.apk
+*.aab
+*.db
+*.sqlite
+*.log
+.DS_Store
