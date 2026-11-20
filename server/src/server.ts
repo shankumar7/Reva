@@ -215,7 +215,7 @@ export async function createServer(opts: Options) {
 
       if (m.t === 'push') {
         if (typeof m.token === 'string' && m.token.length > 20 && m.token.length < 400) {
-          store.setPush(cn.slot, m.token, m.kind === 'notes' ? 'notes' : 'calculator');
+          store.setPush(cn.slot, m.token, m.kind === 'notes' ? 'notes' : m.kind === 'chat' ? 'chat' : 'calculator');
         }
         return;
       }

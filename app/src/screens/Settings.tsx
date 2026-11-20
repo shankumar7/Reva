@@ -126,9 +126,15 @@ export function SettingsScreen({
       </Section>
 
       <Section title="App icon and name" i={1}>
-        <Body dim>What shows on your home screen. Pick any one; you can change it as often as you like.</Body>
+        <Row label="Use a disguise (needs a code to open)" value={settings.cover} onChange={(v) => {
+          if (v) set({ cover: true });
+          else Alert.alert('Turn the disguise off?', 'The app will open straight into your chat with no code, and show as a plain "Chat" icon. Anyone holding your unlocked phone can open it.', [
+            { text: 'Keep the disguise', style: 'cancel' }, { text: 'Turn it off', style: 'destructive', onPress: () => set({ cover: false }) },
+          ]);
+        }} />
+        <Body dim>{settings.cover ? 'What shows on your home screen. Pick any one; you can change it as often as you like.' : 'No cover: the app opens straight into the chat. Turn the disguise back on above any time.'}</Body>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {disguises.map((d) => {
+          {disguises.filter((d) => d.kind !== 'chat').map((d) => {
             const on = settings.disguise === d.id;
             return (
               <ClayPress key={d.id} onPress={() => void pickDisguise(d.id)} radius={20} style={{ padding: 10, width: '22%', alignItems: 'center', borderWidth: on ? 2 : 0, borderColor: t.accent }} label={d.label}>

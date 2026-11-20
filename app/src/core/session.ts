@@ -333,7 +333,7 @@ class Session {
   }
 
   /** Turn on notifications for this phone (asks Android for permission the first time). */
-  async enablePush(kind: 'calculator' | 'notes') {
+  async enablePush(kind: 'calculator' | 'notes' | 'chat') {
     const r = await getPushToken();
     if (r.ok) {
       this.client?.setPush(r.token, kind);

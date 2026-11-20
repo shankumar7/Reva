@@ -70,4 +70,13 @@ module.exports = [
       { d: 'M57 32l18 -5v11l-18 5z', fill: '#FF8A65' },
     ],
   },
+  {
+    // Used when "cover" is switched off: an honest chat app icon. Not shown in the disguise picker.
+    id: 'Chat', label: 'Chat', kind: 'chat', bg: '#7C5CD6',
+    glyph: [
+      { d: rect(28, 30, 52, 36, 12), fill: '#FFFFFF' },
+      { d: 'M40 66l-4 14l16 -14z', fill: '#FFFFFF' },
+      { d: circle(44, 48, 3.2) + circle(54, 48, 3.2) + circle(64, 48, 3.2), fill: '#7C5CD6' },
+    ],
+  },
 ];

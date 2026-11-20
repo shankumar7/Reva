@@ -8,6 +8,7 @@ interface ServiceAccount { project_id: string; client_email: string; private_key
 const TEXT: Record<string, { title: string; body: string }> = {
   calculator: { title: 'Calculator', body: 'Tap to open' },
   notes: { title: 'Notes', body: 'Reminder' },
+  chat: { title: 'Chat', body: 'New message' },
 };
 
 export class Fcm {

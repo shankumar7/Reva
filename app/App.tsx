@@ -51,7 +51,7 @@ export default function App() {
         setSetupStart(p?.peerSignPk ? 'codes' : undefined); // paired or restored, but no codes yet
         return setMode('setup'); // new, or a half-finished setup: continue it
       }
-      setMode('disguise');
+      setMode(s.cover ? 'disguise' : 'chat'); // no cover: straight into the chat
       // connecting must never block opening the app
       session.start().catch(() => {});
     } catch (e) {
@@ -73,16 +73,17 @@ export default function App() {
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'active') {
         session.networkChanged();
-        if (settings.autoLockSeconds > 0 && Date.now() - leftAt.current > settings.autoLockSeconds * 1000) lock();
+        if (settings.cover && settings.autoLockSeconds > 0 && Date.now() - leftAt.current > settings.autoLockSeconds * 1000) lock();
       } else {
         leftAt.current = Date.now();
-        if (settings.autoLockSeconds === 0) lock();
+        if (settings.cover && settings.autoLockSeconds === 0) lock();
       }
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.autoLockSeconds, mode]);
+  }, [settings.autoLockSeconds, settings.cover, mode]);
   function lock() {
+    if (!settings.cover) return; // no cover, nothing to hide behind
     session.viewing = false;
     setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import'].includes(m) ? 'disguise' : m));
   }
@@ -99,11 +100,12 @@ export default function App() {
 
   // keep the real launcher entry in step with the chosen disguise
   useEffect(() => {
-    if (mode === 'disguise' && Disguise.available) {
+    if (mode !== 'loading' && mode !== 'setup' && Disguise.available) {
       const ids = disguises.map((d) => d.id);
-      if (Disguise.currentAlias(ids) !== settings.disguise) Disguise.setAlias(settings.disguise, ids);
+      const want = settings.cover ? settings.disguise : 'Chat';
+      if (Disguise.currentAlias(ids) !== want) Disguise.setAlias(want, ids);
     }
-  }, [mode, settings.disguise]);
+  }, [mode, settings.disguise, settings.cover]);
 
   async function tryUnlock(code: string, kind: 'calc' | 'notes'): Promise<boolean> {
     try {
@@ -132,11 +134,11 @@ export default function App() {
     await wipeDb();
     codes.current = {};
     setSettings(defaultSettings);
-    setMode('disguise');
+    setMode('disguise'); // after a wipe the app looks like a calculator again
   }
 
   // register for notifications the first time the chat opens (and again if the disguise kind changes)
-  const kindNow = disguises.find((d) => d.id === settings.disguise)?.kind ?? 'calculator';
+  const kindNow = !settings.cover ? 'chat' : (disguises.find((d) => d.id === settings.disguise)?.kind === 'notes' ? 'notes' : 'calculator');
   useEffect(() => {
     if (mode === 'chat' && settings.notifications) void session.enablePush(kindNow);
   }, [mode, settings.notifications, kindNow]);
@@ -153,7 +155,7 @@ export default function App() {
   const bg = resolveTheme(settings.theme, false).bg;
   if (!fontsReady || mode === 'loading') return <View style={{ flex: 1, backgroundColor: bg }} />;
 
-  const kind = disguises.find((d) => d.id === settings.disguise)?.kind ?? 'calculator';
+  const kind = disguises.find((d) => d.id === settings.disguise)?.kind === 'notes' ? 'notes' : 'calculator';
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
