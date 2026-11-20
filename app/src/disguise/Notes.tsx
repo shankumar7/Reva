@@ -19,7 +19,7 @@ async function notesDb() {
   return ndb;
 }
 
-export function Notes({ tryUnlock, titleUnlock, onSecret }: { tryUnlock: (code: string) => Promise<boolean>; titleUnlock: boolean; onSecret?: () => void }) {
+export function Notes({ tryUnlock, titleUnlock, onSecret, onBiometric }: { tryUnlock: (code: string) => Promise<boolean>; titleUnlock: boolean; onSecret?: () => void; onBiometric?: () => void }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -56,7 +56,9 @@ export function Notes({ tryUnlock, titleUnlock, onSecret }: { tryUnlock: (code: 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: ins.top + 10 }}>
       <View style={{ paddingHorizontal: 22, paddingBottom: 14 }}>
-        <H1 style={{ fontSize: 52, lineHeight: 56 }}>Notes</H1>
+        <Pressable onLongPress={onBiometric} delayLongPress={1500}>
+          <H1 style={{ fontSize: 52, lineHeight: 56 }}>Notes</H1>
+        </Pressable>
         <Clay radius={20} style={{ marginTop: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: t.textDim, fontSize: 16, marginRight: 8 }}>⌕</Text>
           <TextInput

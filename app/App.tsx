@@ -31,6 +31,7 @@ import { PhotosScreen } from './src/screens/Albums';
 import { Disguise } from './modules/disguise';
 import { lockGuard } from './src/core/lockGuard';
 import { handleBack } from './src/core/backStack';
+import { askFingerprint } from './src/core/fingerprint';
 
 type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes' | 'starred' | 'import' | 'days' | 'photos';
 
@@ -161,13 +162,23 @@ export default function App() {
     if (k.decoy && c.verifyPasscode(k.decoy, code)) { setFrom('decoy'); setMode('decoy'); return true; }
     const main = kind === 'calc' ? k.calc : k.notes;
     if (main && c.verifyPasscode(main, code)) {
-      session.viewing = true;
-      session.start().catch(() => {}); // already running in most cases; makes sure it is
-      setFrom('chat');
-      setMode('chat');
+      openChat();
       return true;
     }
     return false;
+  }
+
+  function openChat() {
+    session.viewing = true;
+    session.start().catch(() => {}); // already running in most cases; makes sure it is
+    setFrom('chat');
+    setMode('chat');
+  }
+
+  /** Hold = (or the Notes title), touch the sensor: the same as typing your code. */
+  async function unlockWithFingerprint() {
+    if (!isReady || !settings.biometric) return;
+    if (await askFingerprint()) openChat();
   }
 
   async function doPanic() {
@@ -215,8 +226,8 @@ export default function App() {
             <Animated.View key={mode} entering={FadeIn.duration(220)} style={{ flex: 1 }}>
               {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} initialStep={setupStart} onExit={isReady ? undefined : () => setMode('disguise')} />}
               {mode === 'disguise' && (kind === 'calculator'
-                ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />
-                : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />)}
+                ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} onBiometric={isReady && settings.biometric ? () => void unlockWithFingerprint() : undefined} />
+                : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} onBiometric={isReady && settings.biometric ? () => void unlockWithFingerprint() : undefined} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />)}
               {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} since={settings.since} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} onStarred={() => setMode('starred')} onImport={() => setMode('import')} onDays={() => setMode('days')} onPhotos={() => setMode('photos')} />}
               {mode === 'days' && <DaysScreen since={settings.since} nickname={settings.nickname} onBack={() => setMode('chat')} onSave={(d) => { void changeSettings({ ...settings, since: d }); session.shareSince(d); }} />}
               {mode === 'photos' && <PhotosScreen onBack={() => setMode('chat')} />}

@@ -20,6 +20,7 @@ import { Backdrop } from '../ui/Backdrop';
 import { session } from '../core/session';
 import { daysTogether, parseDate } from '../core/days';
 import { whileSystemUi } from '../core/lockGuard';
+import { askFingerprint, fingerprintAvailable } from '../core/fingerprint';
 import { useBackHandler } from '../core/backStack';
 
 export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
@@ -215,6 +216,14 @@ export function SettingsScreen({
       </Section>
 
       <Section icon="lock" title="Security" i={4}>
+        <Row label="Fingerprint unlock" value={settings.biometric} onChange={async (v) => {
+          if (!v) return set({ biometric: false });
+          const a = await fingerprintAvailable();
+          if (a === 'no_sensor') return setNote('This phone has no fingerprint sensor.');
+          if (a === 'not_enrolled') return setNote('No fingerprint is saved on this phone yet. Add one in Android settings first.');
+          if (await askFingerprint()) { set({ biometric: true }); setNote('Fingerprint unlock is on. Hold the = key (or the Notes title) and touch the sensor.'); }
+        }} />
+        <Body dim>An extra way in besides your code. Anyone whose fingerprint is saved on this phone can open the chat with it.</Body>
         <Button title="Change codes" kind="plain" onPress={() => setSub('codes')} />
         <Label>Safety number</Label>
         <Clay radius={18} style={{ padding: 14 }}>

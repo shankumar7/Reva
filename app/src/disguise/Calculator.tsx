@@ -26,7 +26,7 @@ const isOp = (c: string) => OPS.includes(c);
 
 interface Entry { expr: string; result: string }
 
-export function Calculator({ tryUnlock, onSecret, initialSci, initialExpr }: { tryUnlock: (code: string) => Promise<boolean>; onSecret?: () => void; initialSci?: boolean; initialExpr?: string }) {
+export function Calculator({ tryUnlock, onSecret, onBiometric, initialSci, initialExpr }: { tryUnlock: (code: string) => Promise<boolean>; onSecret?: () => void; onBiometric?: () => void; initialSci?: boolean; initialExpr?: string }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -107,7 +107,7 @@ export function Calculator({ tryUnlock, onSecret, initialSci, initialExpr }: { t
       <ClayPress
         key={k}
         onPress={() => void press(k)}
-        onLongPress={k === '⌫' ? () => { setExpr(''); setShown(null); } : k === '=' && onSecret ? onSecret : undefined}
+        onLongPress={k === '⌫' ? () => { setExpr(''); setShown(null); } : k === '=' && (onBiometric ?? onSecret) ? (onBiometric ?? onSecret) : undefined}
         holdMs={k === '=' ? 1500 : 450}
         radius={h / 2.4}
         color={c.bg}

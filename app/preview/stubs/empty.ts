@@ -37,6 +37,9 @@ export const useAudioRecorder = () => ({ uri: null, record() {}, stop: async () 
 export const createAudioPlayer = () => ({ play() {}, pause() {}, remove() {}, currentTime: 0, duration: 0, playing: false });
 export const requestRecordingPermissionsAsync = noop;
 export const setAudioModeAsync = async () => {};
+export const hasHardwareAsync = async () => true;
+export const isEnrolledAsync = async () => true;
+export const authenticateAsync = async () => ({ success: true });
 export const impactAsync = async () => {};
 export const notificationAsync = async () => {};
 export const selectionAsync = async () => {};

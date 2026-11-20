@@ -68,7 +68,8 @@
         {
           "microphonePermission": "Record voice notes"
         }
-      ]
+      ],
+      "expo-local-authentication"
     ]
   }
 }

@@ -9,6 +9,7 @@ export interface Settings {
   notesUnlock: 'search' | 'title'; // how Notes opens the chat
   saveToGallery: boolean; // default for received pictures
   autoLockSeconds: number; // 0 = immediately
+  biometric: boolean; // fingerprint as an extra way into the chat
   cover: boolean; // true: opens as Calculator/Notes and needs a code. false: opens straight into the chat
   lastBackup: number; // when the last backup file was made (ms), 0 = never
   notifications: boolean;
@@ -19,7 +20,7 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
   theme: 'auto', accent: '', disguise: 'Calculator', notesUnlock: 'search', saveToGallery: false,
-  autoLockSeconds: 0, cover: true, lastBackup: 0, notifications: true, nickname: 'Us', since: '', disappear: 0,
+  autoLockSeconds: 0, biometric: false, cover: true, lastBackup: 0, notifications: true, nickname: 'Us', since: '', disappear: 0,
 };
 
 export interface Pairing {

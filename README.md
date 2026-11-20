@@ -96,6 +96,9 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
   Calendar, Music. Switch any time in Settings. Add more in `app/config/disguises.js`.
 - Your own home-screen shortcut with any name and picture.
 - Open with a code: Calculator, code then `=`. Notes, code in the search box (or as a note title).
+- **Fingerprint unlock** as an extra way in (Settings, Security): hold the `=` key on the calculator, or the "Notes" title in
+  the Notes disguise, and touch the sensor. Fingerprint only (no phone PIN fallback), and the prompt just says "Confirm".
+  Anyone whose fingerprint is saved on the phone can use it, so turn it on only if that suits you.
 - A decoy code opens a fake empty chat. An optional wipe code erases the phone.
 - Locks itself when you leave. Screenshots, screen recording and the recent-apps picture are blocked.
 
