@@ -31,6 +31,9 @@ export type Envelope =
   | { k: 'aud'; id: string; ts: number; data: string; dur: number; ttl?: number; replyTo?: string } // voice note (data = base64 m4a)
   | { k: 'imp'; items: { id: string; ts: number; m: 0 | 1; text: string }[] } // imported chat history. m = 1: written by the sender of this envelope
   | { k: 'impimg'; id: string; ts: number; m: 0 | 1; text: string; data: string; thumb: string; w: number; h: number }
+  | { k: 'since'; date: string } // the day you started, shared so both phones count the same days
+  | { k: 'stk'; id: string; ts: number; sid: string; ttl?: number; replyTo?: string } // a sticker (just its id)
+  | { k: 'album'; id: string; name: string; on: boolean } // a photo added to or removed from an album
   | { k: 'viewed'; id: string } // a view-once picture was opened
   | { k: 'pin'; id: string; on: boolean }
   | { k: 'snote'; id: string; title: string; body: string; ts: number; del?: boolean }; // shared notes

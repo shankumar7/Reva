@@ -8,7 +8,7 @@ export interface Msg {
   id: string;
   ts: number;
   mine: boolean;
-  kind: 'text' | 'img' | 'aud'; // for voice notes, `w` holds the length in seconds
+  kind: 'text' | 'img' | 'aud' | 'stk'; // voice note: `w` is the length in seconds. Sticker: `text` is the sticker id
   text: string;
   replyTo: string | null;
   state: MsgState;
@@ -36,7 +36,7 @@ interface Row {
   pinned: number; exp: number; thumb: string; w: number; h: number; img_key: string; starred: number;
 }
 const fromRow = (r: Row): Msg => ({
-  id: r.id, ts: r.ts, mine: !!r.mine, kind: r.kind === 'img' ? 'img' : r.kind === 'aud' ? 'aud' : 'text', text: r.text, replyTo: r.reply_to,
+  id: r.id, ts: r.ts, mine: !!r.mine, kind: r.kind === 'img' ? 'img' : r.kind === 'aud' ? 'aud' : r.kind === 'stk' ? 'stk' : 'text', text: r.text, replyTo: r.reply_to,
   state: r.state as MsgState, edited: !!r.edited, deleted: !!r.deleted, rMine: r.r_mine, rTheirs: r.r_theirs,
   once: !!r.once, viewed: !!r.viewed, seen: !!r.seen, pinned: !!r.pinned, exp: r.exp ?? 0,
   thumb: r.thumb ?? '', w: r.w ?? 0, h: r.h ?? 0, imgKey: r.img_key ?? '', starred: !!r.starred,
@@ -161,5 +161,24 @@ export const SharedNotes = {
   async remove(id: string) {
     const d = await openDb();
     await d.runAsync('DELETE FROM snotes WHERE id = ?', id);
+  },
+};
+
+/** Photo albums: which photos belong to which named album. Shared with your partner. */
+export const Albums = {
+  async all(): Promise<{ name: string; ids: string[] }[]> {
+    const d = await openDb();
+    const rows = await d.getAllAsync<{ name: string; msg_id: string }>('SELECT name, msg_id FROM albums ORDER BY name COLLATE NOCASE');
+    const map = new Map<string, string[]>();
+    for (const r of rows) map.set(r.name, [...(map.get(r.name) ?? []), r.msg_id]);
+    return [...map.entries()].map(([name, ids]) => ({ name, ids }));
+  },
+  async add(msgId: string, name: string) {
+    const d = await openDb();
+    await d.runAsync('INSERT OR IGNORE INTO albums (msg_id, name) VALUES (?,?)', msgId, name);
+  },
+  async remove(msgId: string, name: string) {
+    const d = await openDb();
+    await d.runAsync('DELETE FROM albums WHERE msg_id = ? AND name = ?', msgId, name);
   },
 };

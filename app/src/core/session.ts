@@ -5,7 +5,7 @@ import type { Identity } from '../../../shared/crypto';
 import * as SecureStore from 'expo-secure-store';
 import { getCrypto, rawSodium } from './sodium';
 import { Vault } from './storage';
-import { Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
+import { Albums, Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
 import * as Images from './images';
 import { getPushToken } from './push';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -62,12 +62,13 @@ export interface ChatState {
   notes: SharedNote[];
   push: 'unknown' | 'on' | 'denied' | 'unavailable';
   authFailed: boolean; // the server no longer knows this phone
+  albums: { name: string; ids: string[] }[];
 }
 
 type Listener = () => void;
 
 class Session {
-  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [], push: 'unknown', authFailed: false };
+  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [], push: 'unknown', authFailed: false, albums: [] };
   private listeners = new Set<Listener>();
   private client: RevaClient | null = null;
   private identity: Identity | null = null;
@@ -76,6 +77,8 @@ class Session {
   viewing = false; // the chat screen is open and in front
   /** Set by the app from Settings. */
   config = { ttlSeconds: 0, saveToGallery: false };
+  /** The app listens here for things your partner changed on both phones (the shared start date). */
+  hooks: { since?: (date: string) => void } = {};
   private purgeTimer: ReturnType<typeof setInterval> | null = null;
 
   subscribe = (l: Listener) => {
@@ -123,7 +126,7 @@ class Session {
       },
     });
     await this.purge();
-    this.set({ ready: true, messages: await Messages.all(), notes: await SharedNotes.all(), pending: this.client.pending });
+    this.set({ ready: true, messages: await Messages.all(), notes: await SharedNotes.all(), albums: await Albums.all(), pending: this.client.pending });
     this.purgeTimer = setInterval(() => void this.purge(), 30_000);
     this.client.connect();
     return true;
@@ -134,7 +137,7 @@ class Session {
     this.purgeTimer = null;
     this.client?.disconnect();
     this.client = null;
-    this.set({ ready: false, status: 'offline', peerOnline: false, messages: [], peerTyping: false, notes: [] });
+    this.set({ ready: false, status: 'offline', peerOnline: false, messages: [], peerTyping: false, notes: [], albums: [] });
   }
 
   /** Called when Wi-Fi/mobile data changes or the app returns to the front. */
@@ -236,6 +239,22 @@ class Session {
         const key = await Images.store(env.id, env.data);
         await Messages.insert({ id: env.id, ts: env.ts, mine: env.m === 0, kind: 'img', text: env.text, state: 3, seen: true, thumb: env.thumb, w: env.w, h: env.h, imgKey: key });
         break;
+      }
+      case 'stk': {
+        if (await Messages.exists(env.id)) break;
+        await Messages.insert({ id: env.id, ts: env.ts, mine: false, kind: 'stk', text: env.sid, replyTo: env.replyTo ?? null, state: 3, seen: this.viewing, exp: this.expFor(env.ts, env.ttl) });
+        this.client?.send({ k: 'rcpt', ids: [env.id], state: this.viewing ? 'read' : 'delivered' }, 'r' + this.newId());
+        this.set({ peerTyping: false });
+        break;
+      }
+      case 'since':
+        if (/^\d{4}-\d{2}-\d{2}$/.test(env.date)) this.hooks.since?.(env.date);
+        return;
+      case 'album': {
+        if (env.on) await Albums.add(env.id, env.name.slice(0, 40));
+        else await Albums.remove(env.id, env.name);
+        this.set({ albums: await Albums.all() });
+        return;
       }
       case 'viewed': {
         const m = await Messages.get(env.id);
@@ -421,6 +440,38 @@ class Session {
   disablePush() {
     this.client?.clearPush();
     this.set({ push: 'unknown' });
+  }
+
+  /** Send a sticker from the built-in library. */
+  async sendSticker(sid: string, replyTo?: string | null): Promise<boolean> {
+    if (!this.client) return false;
+    const id = this.newId();
+    const ts = Date.now();
+    const ttl = this.config.ttlSeconds;
+    await Messages.insert({ id, ts, mine: true, kind: 'stk', text: sid, replyTo: replyTo ?? null, state: 0, seen: true, exp: this.expFor(ts, ttl) });
+    this.client.send({ k: 'stk', id, ts, sid, ttl: ttl || undefined, replyTo: replyTo ?? undefined }, id);
+    this.set({ pending: this.client.pending });
+    await this.reload();
+    return true;
+  }
+
+  /** Tell your partner's phone the day you started, so both count the same days. */
+  shareSince(date: string) {
+    this.client?.send({ k: 'since', date }, 'sn' + this.newId());
+  }
+
+  async addToAlbum(msgId: string, name: string) {
+    const n = name.trim().slice(0, 40);
+    if (!n) return;
+    await Albums.add(msgId, n);
+    this.client?.send({ k: 'album', id: msgId, name: n, on: true }, 'al' + this.newId());
+    this.set({ albums: await Albums.all() });
+  }
+
+  async removeFromAlbum(msgId: string, name: string) {
+    await Albums.remove(msgId, name);
+    this.client?.send({ k: 'album', id: msgId, name, on: false }, 'al' + this.newId());
+    this.set({ albums: await Albums.all() });
   }
 
   async starMessage(id: string, on: boolean) {
