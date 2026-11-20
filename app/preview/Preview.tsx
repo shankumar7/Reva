@@ -21,7 +21,9 @@ import { ThemeGallery } from '../src/screens/ThemeGallery';
 import { Setup } from '../src/screens/Setup';
 import { StarredScreen } from '../src/screens/Starred';
 import { SharedNotesScreen } from '../src/screens/SharedNotes';
-import { SAMPLE_THUMB } from './sampleThumb';
+import { SAMPLE_THUMB, THUMBS } from './sampleThumb';
+import { DaysScreen } from '../src/screens/DaysScreen';
+import { PhotosScreen } from '../src/screens/Albums';
 import { ImportWhatsApp } from '../src/screens/ImportWhatsApp';
 import { BackupScreen } from '../src/screens/Backup';
 
@@ -41,25 +43,29 @@ const SAMPLE: Msg[] = [
   m({ id: '8', mine: false, ago: 20, kind: 'aud', w: 23 }),
   m({ id: '9', mine: true, ago: 5, text: 'On my way', state: 1, starred: true }),
   m({ id: '10', mine: true, ago: 1, text: 'Almost there…', state: 0 }),
+  m({ id: '11', mine: false, ago: 3, kind: 'stk', text: 'l2', state: 3 }),
 ];
+const PHOTOS: Msg[] = THUMBS.map((th, i) => m({ id: 'p' + i, mine: i % 2 === 0, ago: 60 * 24 * (i + 1), kind: 'img', thumb: th, w: 240, h: 240, imgKey: 'k' }));
 
 function Inner() {
   const q = useMemo(() => new URLSearchParams(typeof window !== 'undefined' ? window.location.search : ''), []);
   const t = useTheme();
   const screen = q.get('screen') ?? 'chat';
   React.useEffect(() => {
-    session.seedForPreview({ messages: q.get('empty') ? [] : SAMPLE, pending: q.get('empty') ? 0 : 1, peerTyping: q.get('typing') === '1', notes: [{ id: 'n1', title: 'Shopping', body: 'Milk, bread, flowers', ts: now }, { id: 'n2', title: 'Trip ideas', body: 'Hampi, Gokarna, Coorg', ts: now - 86400000 }] });
+    session.seedForPreview({ messages: q.get('empty') ? [] : q.get('screen') === 'photos' ? [...PHOTOS, ...SAMPLE] : SAMPLE, albums: q.get('screen') === 'photos' ? [{ name: 'Trips', ids: ['p0', 'p2', 'p4'] }, { name: 'Us', ids: ['p1', 'p3'] }, { name: 'Food', ids: ['p5'] }] : [], pending: q.get('empty') ? 0 : 1, peerTyping: q.get('typing') === '1', notes: [{ id: 'n1', title: 'Shopping', body: 'Milk, bread, flowers', ts: now }, { id: 'n2', title: 'Trip ideas', body: 'Hampi, Gokarna, Coorg', ts: now - 86400000 }] });
   }, [q]);
   const noop = () => {};
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      {screen === 'chat' && <Chat nickname="Asha" ttlSeconds={q.get('ttl') ? 86400 : 0} onSettings={noop} onNotes={noop} onStarred={noop} onImport={noop} />}
+      {screen === 'chat' && <Chat nickname="Asha" ttlSeconds={q.get('ttl') ? 86400 : 0} since={q.get('since') ?? ''} initialSheet={q.get('sheet') === 'stickers' ? 'stickers' : undefined} onSettings={noop} onNotes={noop} onStarred={noop} onImport={noop} onDays={noop} onPhotos={noop} />}
       {screen === 'settings' && <SettingsScreen settings={{ ...defaultSettings, theme: q.get('theme') ?? 'auto' }} onChange={noop} onBack={noop} onLock={noop} onPanic={noop} />}
       {screen === 'themes' && <ThemeGallery theme={q.get('theme') ?? 'auto'} accent={q.get('accent') ?? ''} onTheme={noop} onAccent={noop} onBack={noop} />}
       {screen === 'calc' && <Calculator tryUnlock={async () => false} initialSci={q.get('sci') === '1'} initialExpr={q.get('expr') ?? ''} />}
       {screen === 'notes' && <Notes tryUnlock={async () => false} titleUnlock={false} />}
       {screen === 'setup' && <Setup onDone={noop} />}
       {screen === 'setupcodes' && <Setup onDone={noop} initialStep="codes" />}
+      {screen === 'days' && <DaysScreen since={q.get('since') ?? ''} nickname="Asha" onSave={noop} onBack={noop} />}
+      {screen === 'photos' && <PhotosScreen onBack={noop} />}
       {screen === 'import' && <ImportWhatsApp onBack={noop} />}
       {screen === 'backup' && <BackupScreen settings={defaultSettings} onSettings={noop} onBack={noop} nickname="Asha" />}
       {screen === 'starred' && <StarredScreen nickname="Asha" onBack={noop} />}

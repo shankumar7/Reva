@@ -18,6 +18,7 @@ import { ThemeGallery } from './ThemeGallery';
 import { Icon, type IconName } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { session } from '../core/session';
+import { daysTogether, parseDate } from '../core/days';
 import { whileSystemUi } from '../core/lockGuard';
 import { useBackHandler } from '../core/backStack';
 
@@ -36,15 +37,6 @@ export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
 }
 
 /** A group of settings in its own soft card, with a small icon so you can find things at a glance. */
-/** How many days since the date you set (day 1 is that day). */
-function daysTogether(since: string): number {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(since);
-  if (!m) return 0;
-  const d = new Date(+m[1], +m[2] - 1, +m[3]).getTime();
-  if (Number.isNaN(d) || d > Date.now()) return 0;
-  return Math.floor((Date.now() - d) / 86400000) + 1;
-}
-
 function Section({ title, icon, children, i }: { title: string; icon: IconName; children: React.ReactNode; i: number }) {
   const t = useTheme();
   return (
@@ -201,7 +193,7 @@ export function SettingsScreen({
         </Clay>
         <Label>Together since (optional, like 2023-02-14)</Label>
         <Clay radius={18} style={{ paddingHorizontal: 16 }}>
-          <TextInput value={settings.since} onChangeText={(v) => set({ since: v.replace(/[^0-9-]/g, '').slice(0, 10) })} placeholder="YYYY-MM-DD" placeholderTextColor={t.textDim} keyboardType="numbers-and-punctuation"
+          <TextInput value={settings.since} onChangeText={(v) => { const d = v.replace(/[^0-9-]/g, '').slice(0, 10); set({ since: d }); if (parseDate(d)) session.shareSince(d); }} placeholder="YYYY-MM-DD" placeholderTextColor={t.textDim} keyboardType="numbers-and-punctuation"
             style={{ paddingVertical: 14, color: t.text, fontFamily: fonts.body, fontSize: 16 }} />
         </Clay>
         <Row label="Save received pictures to gallery by default" value={settings.saveToGallery} onChange={(v) => set({ saveToGallery: v })} />

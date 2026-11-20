@@ -26,11 +26,13 @@ import { SettingsScreen } from './src/screens/Settings';
 import { SharedNotesScreen } from './src/screens/SharedNotes';
 import { StarredScreen } from './src/screens/Starred';
 import { ImportWhatsApp } from './src/screens/ImportWhatsApp';
+import { DaysScreen } from './src/screens/DaysScreen';
+import { PhotosScreen } from './src/screens/Albums';
 import { Disguise } from './modules/disguise';
 import { lockGuard } from './src/core/lockGuard';
 import { handleBack } from './src/core/backStack';
 
-type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes' | 'starred' | 'import';
+type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes' | 'starred' | 'import' | 'days' | 'photos';
 
 export default function App() {
   const [fontsReady] = useFonts({ Anton_400Regular, Inter_400Regular, Inter_500Medium, Inter_700Bold });
@@ -77,7 +79,7 @@ export default function App() {
   useEffect(() => { void boot(); }, [boot]);
 
   // screenshots and screen recording are blocked, and the recents thumbnail is blank, while anything private is open
-  const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup' || mode === 'notes' || mode === 'starred' || mode === 'import';
+  const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup' || mode === 'notes' || mode === 'starred' || mode === 'import' || mode === 'days' || mode === 'photos';
   useEffect(() => {
     if (secret) void ScreenCapture.preventScreenCaptureAsync('private').catch(() => {});
     else void ScreenCapture.allowScreenCaptureAsync('private').catch(() => {});
@@ -103,14 +105,14 @@ export default function App() {
     if (!isReady && hiddenSetup.current) { hiddenSetup.current = false; setMode((m) => (m === 'setup' ? 'disguise' : m)); return; }
     if (!settings.cover) return; // no cover, nothing to hide behind
     session.viewing = false;
-    setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import'].includes(m) ? 'disguise' : m));
+    setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import', 'days', 'photos'].includes(m) ? 'disguise' : m));
   }
 
   // the phone's back button goes back one screen instead of closing the app
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (handleBack()) return true; // something inside the screen (a search, an editor, a step) closes first
-      if (mode === 'settings' || mode === 'notes' || mode === 'starred' || mode === 'import') { setMode(mode === 'settings' ? from : 'chat'); return true; }
+      if (mode === 'settings' || mode === 'notes' || mode === 'starred' || mode === 'import' || mode === 'days' || mode === 'photos') { setMode(mode === 'settings' ? from : 'chat'); return true; }
       return false;
     });
     return () => sub.remove();
@@ -185,6 +187,12 @@ export default function App() {
     if (mode === 'chat' && settings.notifications) void session.enablePush(kindNow);
   }, [mode, settings.notifications, kindNow]);
 
+  // your partner set or changed the day you started: take it
+  useEffect(() => {
+    session.hooks.since = (d) => setSettings((prev) => { const n = { ...prev, since: d }; void Vault.saveSettings(n); return n; });
+    return () => { session.hooks.since = undefined; };
+  }, []);
+
   useEffect(() => {
     session.config = { ttlSeconds: settings.disappear, saveToGallery: settings.saveToGallery };
   }, [settings.disappear, settings.saveToGallery]);
@@ -209,7 +217,9 @@ export default function App() {
               {mode === 'disguise' && (kind === 'calculator'
                 ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />
                 : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />)}
-              {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} onStarred={() => setMode('starred')} onImport={() => setMode('import')} />}
+              {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} since={settings.since} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} onStarred={() => setMode('starred')} onImport={() => setMode('import')} onDays={() => setMode('days')} onPhotos={() => setMode('photos')} />}
+              {mode === 'days' && <DaysScreen since={settings.since} nickname={settings.nickname} onBack={() => setMode('chat')} onSave={(d) => { void changeSettings({ ...settings, since: d }); session.shareSince(d); }} />}
+              {mode === 'photos' && <PhotosScreen onBack={() => setMode('chat')} />}
               {mode === 'starred' && <StarredScreen nickname={settings.nickname} onBack={() => setMode('chat')} />}
               {mode === 'import' && <ImportWhatsApp onBack={() => setMode('chat')} />}
               {mode === 'notes' && <SharedNotesScreen onBack={() => setMode('chat')} />}

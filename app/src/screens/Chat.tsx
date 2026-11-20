@@ -22,6 +22,10 @@ import { session } from '../core/session';
 import { dataUri } from '../core/images';
 import type { Msg } from '../core/db';
 import { ImageViewer } from './ImageViewer';
+import { AlbumSheet } from './Albums';
+import { PACKS, stickerById, stickerIndex } from '../core/stickers';
+import { mix } from '../colors';
+import { daysTogether } from '../core/days';
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 const useChat = () => useSyncExternalStore(session.subscribe, session.getState);
@@ -52,8 +56,8 @@ function buildItems(messages: Msg[]): Item[] {
   return out;
 }
 
-export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onImport }: {
-  nickname: string; ttlSeconds: number; onSettings: () => void; onNotes: () => void; onStarred: () => void; onImport: () => void;
+export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarred, onImport, onDays, onPhotos, initialSheet }: {
+  nickname: string; ttlSeconds: number; since?: string; onSettings: () => void; onNotes: () => void; onStarred: () => void; onImport: () => void; onDays: () => void; onPhotos: () => void; initialSheet?: 'stickers';
 }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
@@ -71,6 +75,8 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
   const [err, setErr] = useState('');
   const [viewer, setViewer] = useState<Msg | null>(null);
   const [more, setMore] = useState(false);
+  const [stickers, setStickers] = useState(initialSheet === 'stickers');
+  const [albumFor, setAlbumFor] = useState<string | null>(null);
   const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
   const [recStart, setRecStart] = useState<number | null>(null);
   const [recSecs, setRecSecs] = useState(0);
@@ -211,6 +217,12 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Label style={{ color: chat.peerOnline && connected ? t.good : t.textDim }}>{status}</Label>
               {ttlSeconds > 0 && <Icon name="timer" size={12} color={t.textDim} />}
+              {daysTogether(since ?? '') > 0 && (
+                <Pressable onPress={onDays} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Icon name="heart" size={11} color={t.accent} />
+                  <Label style={{ color: t.accent }}>Day {daysTogether(since ?? '').toLocaleString()}</Label>
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -231,7 +243,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
         <Animated.View entering={FadeInDown.duration(180)} exiting={FadeOut} style={{ marginHorizontal: 18, marginBottom: 8 }}>
           <Clay radius={16} style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Icon name="pin" size={16} color={t.accent} />
-            <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontFamily: fonts.medium, fontSize: 13 }}>{pinned.kind === 'img' ? 'Photo' : pinned.kind === 'aud' ? 'Voice note' : pinned.text}</Text>
+            <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontFamily: fonts.medium, fontSize: 13 }}>{pinned.kind === 'img' ? 'Photo' : pinned.kind === 'aud' ? 'Voice note' : pinned.kind === 'stk' ? 'Sticker' : pinned.text}</Text>
             <Pressable hitSlop={10} onPress={() => void session.pinMessage(pinned.id, false)}><Icon name="x" size={16} color={t.textDim} /></Pressable>
           </Clay>
         </Animated.View>
@@ -297,7 +309,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
           <Clay radius={16} style={{ padding: 10, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
               <Label>{editing ? 'Editing' : 'Replying'}</Label>
-              <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.body }}>{(editing ?? replyTo)!.kind === 'img' ? 'Photo' : (editing ?? replyTo)!.text}</Text>
+              <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.body }}>{(editing ?? replyTo)!.kind === 'img' ? 'Photo' : (editing ?? replyTo)!.kind === 'stk' ? 'Sticker' : (editing ?? replyTo)!.text}</Text>
             </View>
             <Pressable hitSlop={12} onPress={() => { setReplyTo(null); setEditing(null); if (editing) setText(''); }}><Icon name="x" size={18} color={t.textDim} /></Pressable>
           </Clay>
@@ -335,15 +347,20 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
 
       <MoreSheet open={more} onClose={() => setMore(false)} items={[
         { icon: 'search', label: 'Search messages', run: () => { setSearching(true); setQ(''); } },
+        { icon: 'heart', label: 'Our days together', run: onDays },
+        { icon: 'image', label: 'Photos and albums', run: onPhotos },
         { icon: 'star', label: 'Starred messages', run: onStarred },
         { icon: 'note', label: 'Shared notes', run: onNotes },
         { icon: 'upload', label: 'Import a WhatsApp chat', run: onImport },
         { icon: 'settings', label: 'Settings', run: onSettings },
       ]} />
-      <AttachSheet open={attach} once={once} setOnce={setOnce} onClose={() => setAttach(false)} onPick={(s) => void pick(s)} />
+      <AttachSheet open={attach} once={once} setOnce={setOnce} onClose={() => setAttach(false)} onPick={(s) => void pick(s)} onStickers={() => { setAttach(false); setStickers(true); }} />
+      <StickerSheet open={stickers} onClose={() => setStickers(false)} onPick={(sid) => { setStickers(false); if (chat.ready) void session.sendSticker(sid, replyTo?.id); else setErr('Still starting up. Try again in a moment.'); setReplyTo(null); }} />
+      <AlbumSheet msgId={albumFor} onClose={() => setAlbumFor(null)} />
       <ActionMenu m={menu} onClose={() => setMenu(null)}
         onReply={(m) => { setReplyTo(m); setEditing(null); }}
-        onEdit={(m) => { setEditing(m); setReplyTo(null); setText(m.text); }} />
+        onEdit={(m) => { setEditing(m); setReplyTo(null); setText(m.text); }}
+        onAlbum={(id) => setAlbumFor(id)} />
       <ImageViewer id={viewer?.id ?? null} once={!!viewer?.once} mine={!!viewer?.mine} onClose={() => setViewer(null)} />
       <Hearts at={chat.hiAt} />
     </KeyboardAvoidingView>
@@ -489,8 +506,10 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
   );
 
   const mine = m.mine;
-  const bg = mine ? t.bubbleMine : t.bubbleTheirs;
-  const fg = mine ? t.onMine : t.onTheirs;
+  const isStk = m.kind === 'stk';
+  const stk = isStk ? stickerById(m.text) : undefined;
+  const bg = isStk ? stickerTint(t, m.text) : mine ? t.bubbleMine : t.bubbleTheirs;
+  const fg = isStk ? t.text : mine ? t.onMine : t.onTheirs;
   const time = new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   // the "read" ticks must stand out on any bubble colour
   const readTick = contrast(t.accent, bg) >= 3 ? t.accent : luminance(bg) < 0.35 ? '#8DF5C8' : '#0B6B4C';
@@ -538,11 +557,16 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
           <Clay radius={22} color={bg} depth={0.55} style={[{ paddingHorizontal: isImg && !m.once && !m.deleted ? 6 : 14, paddingVertical: isImg && !m.once && !m.deleted ? 6 : 9 }, tail, flash ? { borderWidth: 2, borderColor: t.accent } : null]}>
             {quoted && !m.deleted && (
               <Pressable onPress={onQuote} style={{ borderLeftWidth: 3, borderLeftColor: fg, paddingLeft: 8, paddingVertical: 4, paddingRight: 8, marginBottom: 6, marginHorizontal: isImg ? 8 : 0, borderRadius: 8, backgroundColor: fg + '1F' }}>
-                <Text numberOfLines={2} style={{ color: fg, opacity: 0.85, fontFamily: fonts.body, fontSize: 13 }}>{quoted.deleted ? 'Deleted message' : quoted.kind === 'img' ? 'Photo' : quoted.kind === 'aud' ? 'Voice note' : quoted.text}</Text>
+                <Text numberOfLines={2} style={{ color: fg, opacity: 0.85, fontFamily: fonts.body, fontSize: 13 }}>{quoted.deleted ? 'Deleted message' : quoted.kind === 'img' ? 'Photo' : quoted.kind === 'aud' ? 'Voice note' : quoted.kind === 'stk' ? 'Sticker' : quoted.text}</Text>
               </Pressable>
             )}
             {m.deleted ? (
               <Text style={{ color: fg, opacity: 0.6, fontFamily: fonts.body, fontStyle: 'italic', fontSize: 15 }}>Message deleted</Text>
+            ) : isStk ? (
+              <View style={{ alignItems: 'center', paddingVertical: 8, minWidth: 128 }}>
+                <Text style={{ fontSize: 62, lineHeight: 74 }}>{stk?.emoji ?? '❔'}</Text>
+                <Text style={{ color: fg, fontFamily: fonts.display, fontSize: 16, textTransform: 'uppercase', letterSpacing: 0.6 }}>{stk?.label ?? 'Sticker'}</Text>
+              </View>
             ) : m.kind === 'aud' ? <VoiceBody m={m} color={fg} /> : isImg ? imageBody() : (
               <Linkified text={m.text} color={fg} />
             )}
@@ -670,7 +694,47 @@ function VoiceBody({ m, color }: { m: Msg; color: string }) {
   );
 }
 
-function AttachSheet({ open, once, setOnce, onClose, onPick }: { open: boolean; once: boolean; setOnce: (v: boolean) => void; onClose: () => void; onPick: (s: 'gallery' | 'camera') => void }) {
+/** The tint of a sticker card, taken from the current theme so it always fits. */
+function stickerTint(t: ReturnType<typeof useTheme>, sid: string) {
+  const c = [t.accent, t.accent2, t.good, t.danger][Math.max(0, stickerIndex(sid)) % 4];
+  return mix(t.surface, c, t.dark ? 0.34 : 0.3);
+}
+
+function StickerSheet({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (sid: string) => void }) {
+  const t = useTheme();
+  const ins = useSafeAreaInsets();
+  const [pack, setPack] = useState(0);
+  if (!open) return null;
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+        <Animated.View entering={FadeInDown.duration(200)}>
+          <Pressable>
+            <Clay radius={30} style={{ margin: 12, marginBottom: ins.bottom + 12, padding: 16, gap: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {PACKS.map((p, i) => (
+                  <ClayPress key={p.name} onPress={() => setPack(i)} radius={14} color={pack === i ? t.accent : undefined} style={{ paddingVertical: 8, paddingHorizontal: 14 }} label={p.name}>
+                    <Text style={{ color: pack === i ? t.onAccent : t.text, fontFamily: fonts.bold, fontSize: 13 }}>{p.name}</Text>
+                  </ClayPress>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {PACKS[pack].stickers.map((s) => (
+                  <ClayPress key={s.id} onPress={() => onPick(s.id)} radius={20} color={stickerTint(t, s.id)} depth={0.6} style={{ width: '22.5%', paddingVertical: 10, alignItems: 'center' }} label={s.label}>
+                    <Text style={{ fontSize: 32 }}>{s.emoji}</Text>
+                    <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.medium, fontSize: 9, marginTop: 4 }}>{s.label}</Text>
+                  </ClayPress>
+                ))}
+              </View>
+            </Clay>
+          </Pressable>
+        </Animated.View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function AttachSheet({ open, once, setOnce, onClose, onPick, onStickers }: { open: boolean; once: boolean; setOnce: (v: boolean) => void; onClose: () => void; onPick: (s: 'gallery' | 'camera') => void; onStickers: () => void }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   if (!open) return null;
@@ -691,6 +755,14 @@ function AttachSheet({ open, once, setOnce, onClose, onPick }: { open: boolean; 
                   <Text style={{ color: t.dark ? '#1c1730' : '#FFFFFF', fontFamily: fonts.bold }}>Camera</Text>
                 </ClayPress>
               </View>
+              <ClayPress onPress={onStickers} radius={22} style={{ paddingVertical: 14, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 12 }} label="Stickers">
+                <Text style={{ fontSize: 24 }}>🥰</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: t.text, fontFamily: fonts.bold, fontSize: 16 }}>Stickers</Text>
+                  <Text style={{ color: t.textDim, fontFamily: fonts.body, fontSize: 12 }}>40 little ways to say it</Text>
+                </View>
+                <Icon name="plus" size={18} color={t.textDim} />
+              </ClayPress>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Icon name="eye" size={20} />
                 <View style={{ flex: 1 }}>
@@ -708,7 +780,7 @@ function AttachSheet({ open, once, setOnce, onClose, onPick }: { open: boolean; 
   );
 }
 
-function ActionMenu({ m, onClose, onReply, onEdit }: { m: Msg | null; onClose: () => void; onReply: (m: Msg) => void; onEdit: (m: Msg) => void }) {
+function ActionMenu({ m, onClose, onReply, onEdit, onAlbum }: { m: Msg | null; onClose: () => void; onReply: (m: Msg) => void; onEdit: (m: Msg) => void; onAlbum: (id: string) => void }) {
   const t = useTheme();
   if (!m) return null;
   const row = (label: string, icon: React.ComponentProps<typeof Icon>['name'], run: () => void, danger?: boolean) => (
@@ -723,7 +795,7 @@ function ActionMenu({ m, onClose, onReply, onEdit }: { m: Msg | null; onClose: (
         <Animated.View entering={FadeInDown.duration(180)} style={{ gap: 12 }}>
           <Clay radius={22} color={m.mine ? t.bubbleMine : t.bubbleTheirs} depth={0.6} style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
             <Text numberOfLines={3} style={{ color: m.mine ? t.onMine : t.onTheirs, fontFamily: fonts.body, fontSize: 15 }}>
-              {m.kind === 'img' ? 'Photo' : m.kind === 'aud' ? 'Voice note · ' + m.w + 's' : m.text}
+              {m.kind === 'img' ? 'Photo' : m.kind === 'aud' ? 'Voice note · ' + m.w + 's' : m.kind === 'stk' ? 'Sticker' : m.text}
             </Text>
           </Clay>
           <Clay radius={28} style={{ flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 12 }}>
@@ -738,6 +810,7 @@ function ActionMenu({ m, onClose, onReply, onEdit }: { m: Msg | null; onClose: (
           {row(m.starred ? 'Remove star' : 'Star', 'star', () => void session.starMessage(m.id, !m.starred))}
           {m.mine && m.kind === 'text' && row('Edit', 'edit', () => onEdit(m))}
           {m.kind === 'img' && !m.once && m.imgKey ? row('Save to gallery', 'download', () => void session.saveImage(m.id)) : null}
+          {m.kind === 'img' && !m.once && m.thumb ? row('Add to album', 'image', () => onAlbum(m.id)) : null}
           {m.mine && row('Delete for both', 'trash', () => void session.deleteMine(m.id), true)}
         </Animated.View>
       </Pressable>

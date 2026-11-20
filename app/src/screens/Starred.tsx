@@ -41,7 +41,8 @@ export function StarredScreen({ onBack, nickname }: { onBack: () => void; nickna
                 <Image source={{ uri: dataUri(item.thumb) }} style={{ width: 140, height: 140, borderRadius: 14 }} />
               ) : null}
               {item.kind === 'aud' ? <Text style={{ color: t.text, fontFamily: fonts.medium }}>Voice note · {item.w}s</Text> : null}
-              {item.text ? <Text style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22 }}>{item.text}</Text> : null}
+              {item.kind === 'stk' ? <Text style={{ color: t.text, fontFamily: fonts.medium }}>Sticker</Text> : null}
+              {item.text && item.kind !== 'stk' ? <Text style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22 }}>{item.text}</Text> : null}
             </ClayPress>
           </Animated.View>
         )}

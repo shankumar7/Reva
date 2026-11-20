@@ -102,7 +102,7 @@ export async function exportText(nickname: string): Promise<string> {
       const d = new Date(m.ts);
       const when = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       const who = m.mine ? 'Me' : nickname || 'Partner';
-      const body = m.kind === 'img' ? '<photo>' + (m.text ? ' ' + m.text : '') : m.kind === 'aud' ? `<voice note ${m.w}s>` : m.text;
+      const body = m.kind === 'img' ? '<photo>' + (m.text ? ' ' + m.text : '') : m.kind === 'aud' ? `<voice note ${m.w}s>` : m.kind === 'stk' ? '<sticker>' : m.text;
       return `${when} - ${who}: ${body}`;
     });
   const uri = (FileSystem.cacheDirectory ?? '') + 'chat-' + new Date().toISOString().slice(0, 10) + '.txt';
