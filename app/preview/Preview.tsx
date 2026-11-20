@@ -48,7 +48,7 @@ function Inner() {
   const t = useTheme();
   const screen = q.get('screen') ?? 'chat';
   React.useEffect(() => {
-    session.seedForPreview({ messages: SAMPLE, pending: 1, peerTyping: q.get('typing') === '1', notes: [{ id: 'n1', title: 'Shopping', body: 'Milk, bread, flowers', ts: now }, { id: 'n2', title: 'Trip ideas', body: 'Hampi, Gokarna, Coorg', ts: now - 86400000 }] });
+    session.seedForPreview({ messages: q.get('empty') ? [] : SAMPLE, pending: q.get('empty') ? 0 : 1, peerTyping: q.get('typing') === '1', notes: [{ id: 'n1', title: 'Shopping', body: 'Milk, bread, flowers', ts: now }, { id: 'n2', title: 'Trip ideas', body: 'Hampi, Gokarna, Coorg', ts: now - 86400000 }] });
   }, [q]);
   const noop = () => {};
   return (

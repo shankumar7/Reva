@@ -17,9 +17,12 @@ from a phone, so fonts and shadows can differ slightly on a device.
 | <img src="docs/screenshots/setup-role.png" width="260"> | <img src="docs/screenshots/setup-codes.png" width="260"> |
 
 ### Chat
-| Nocturne | Aurora (typing, disappearing on) | Glacier | Lemonade |
-|---|---|---|---|
-| <img src="docs/screenshots/chat-nocturne.png" width="200"> | <img src="docs/screenshots/chat-aurora.png" width="200"> | <img src="docs/screenshots/chat-glacier.png" width="200"> | <img src="docs/screenshots/chat-lemonade.png" width="200"> |
+Voice notes with a waveform, photos with the time on the picture, a typing bubble, an online dot, quote-jumping,
+a jump-to-latest button, and one round button that turns from a microphone into a send arrow as you type.
+
+| Nocturne | Aurora (typing, disappearing on) | Glacier | Lemonade | A new chat |
+|---|---|---|---|---|
+| <img src="docs/screenshots/chat-nocturne.png" width="170"> | <img src="docs/screenshots/chat-aurora.png" width="170"> | <img src="docs/screenshots/chat-glacier.png" width="170"> | <img src="docs/screenshots/chat-lemonade.png" width="170"> | <img src="docs/screenshots/chat-empty.png" width="170"> |
 
 ### 33 themes
 The same chat in twelve of them:
@@ -41,9 +44,9 @@ lay over any of them.
 | <img src="docs/screenshots/calc.png" width="260"> | <img src="docs/screenshots/calc-sci.png" width="260"> |
 
 ### Settings and tools
-| Settings | Backup and restore | Import a WhatsApp chat |
+| Settings (grouped cards, profile at the top) | Backup and restore | Import a WhatsApp chat |
 |---|---|---|
-| <img src="docs/screenshots/settings.png" width="220"> | <img src="docs/screenshots/backup.png" width="220"> | <img src="docs/screenshots/import.png" width="220"> |
+| <img src="docs/screenshots/settings-full.png" width="220"> | <img src="docs/screenshots/backup.png" width="220"> | <img src="docs/screenshots/import.png" width="220"> |
 
 | Shared notes | Starred messages | The Notes disguise |
 |---|---|---|

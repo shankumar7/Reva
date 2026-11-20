@@ -15,7 +15,7 @@ import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateResult }
 import { Codes } from './Setup';
 import { BackupScreen } from './Backup';
 import { ThemeGallery } from './ThemeGallery';
-import { Icon } from '../ui/Icon';
+import { Icon, type IconName } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { session } from '../core/session';
 import { whileSystemUi } from '../core/lockGuard';
@@ -35,11 +35,20 @@ export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
   );
 }
 
-function Section({ title, children, i }: { title: string; children: React.ReactNode; i: number }) {
+/** A group of settings in its own soft card, with a small icon so you can find things at a glance. */
+function Section({ title, icon, children, i }: { title: string; icon: IconName; children: React.ReactNode; i: number }) {
+  const t = useTheme();
   return (
-    <Animated.View entering={FadeInDown.delay(i * 50).duration(260)} style={{ gap: 12 }}>
-      <Label>{title}</Label>
-      {children}
+    <Animated.View entering={FadeInDown.delay(i * 50).duration(260)}>
+      <Clay radius={28} style={{ padding: 18, gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: t.accent + '33', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={icon} size={18} color={t.accent} />
+          </View>
+          <Text style={{ color: t.text, fontFamily: fonts.bold, fontSize: 17 }}>{title}</Text>
+        </View>
+        {children}
+      </Clay>
     </Animated.View>
   );
 }
@@ -107,14 +116,26 @@ export function SettingsScreen({
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
     <Backdrop />
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 14, paddingBottom: ins.bottom + 40, gap: 26 }} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 14, paddingBottom: ins.bottom + 40, gap: 16 }} keyboardShouldPersistTaps="handled">
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <H1 style={{ fontSize: 46 }}>Settings</H1>
         <Pressable onPress={onBack} hitSlop={14}><Text style={{ color: t.accent, fontFamily: fonts.bold, fontSize: 16 }}>Done</Text></Pressable>
       </View>
+      <Animated.View entering={FadeInDown.duration(260)}>
+        <Clay radius={28} color={t.accent} style={{ padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: t.onAccent + '24', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: t.onAccent, fontFamily: fonts.display, fontSize: 28 }}>{(settings.nickname.trim()[0] ?? 'U').toUpperCase()}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: t.onAccent, fontFamily: fonts.display, fontSize: 26, textTransform: 'uppercase' }}>{settings.nickname || 'Us'}</Text>
+            <Text style={{ color: t.onAccent, opacity: 0.8, fontFamily: fonts.medium, fontSize: 12 }}>Private and end-to-end encrypted</Text>
+          </View>
+          <Icon name="lock" size={22} color={t.onAccent} />
+        </Clay>
+      </Animated.View>
       {note ? <Clay radius={16} style={{ padding: 12 }}><Body dim>{note}</Body></Clay> : null}
 
-      <Section title="Theme" i={0}>
+      <Section icon="star" title="Theme" i={0}>
         <ClayPress onPress={() => setSub('themes')} radius={24} style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }} label="Open the theme gallery">
           <View style={{ flexDirection: 'row' }}>
             {t.swatch.map((c, i) => <View key={i} style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c, marginLeft: i ? -8 : 0, borderWidth: 2, borderColor: t.surface }} />)}
@@ -127,7 +148,7 @@ export function SettingsScreen({
         </ClayPress>
       </Section>
 
-      <Section title="App icon and name" i={1}>
+      <Section icon="eye" title="App icon and name" i={1}>
         <Row label="Use a disguise (needs a code to open)" value={settings.cover} onChange={(v) => {
           if (v) set({ cover: true });
           else Alert.alert('Turn the disguise off?', 'The app will open straight into your chat with no code, and show as a plain "Chat" icon. Anyone holding your unlocked phone can open it.', [
@@ -153,17 +174,17 @@ export function SettingsScreen({
             style={{ paddingVertical: 14, color: t.text, fontFamily: fonts.body, fontSize: 16 }} />
         </Clay>
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Button title={shortIcon ? 'Picture chosen' : 'Choose picture'} kind="plain" onPress={() => void pickShortcutIcon()} style={{ flex: 1 }} />
+          <Button title={shortIcon ? 'Picture set' : 'Picture'} kind="plain" onPress={() => void pickShortcutIcon()} style={{ flex: 1 }} />
           <Button title="Add to home" onPress={() => void addShortcut()} style={{ flex: 1 }} />
         </View>
       </Section>
 
-      <Section title="Notes: how to open" i={2}>
+      <Section icon="note" title="Notes: how to open" i={2}>
         <Row label="Also open by saving a note titled with the code" value={settings.notesUnlock === 'title'} onChange={(v) => set({ notesUnlock: v ? 'title' : 'search' })} />
         <Body dim>The search box always works: type the notes code, then press the search key.</Body>
       </Section>
 
-      <Section title="Chat" i={3}>
+      <Section icon="heart" title="Chat" i={3}>
         <Label>What you call your partner</Label>
         <Clay radius={18} style={{ paddingHorizontal: 16 }}>
           <TextInput value={settings.nickname} onChangeText={(v) => set({ nickname: v.slice(0, 20) })} placeholderTextColor={t.textDim}
@@ -187,7 +208,7 @@ export function SettingsScreen({
         <Row label="Lock the moment you leave the app" value={settings.autoLockSeconds === 0} onChange={(v) => set({ autoLockSeconds: v ? 0 : 30 })} />
       </Section>
 
-      <Section title="Security" i={4}>
+      <Section icon="lock" title="Security" i={4}>
         <Button title="Change codes" kind="plain" onPress={() => setSub('codes')} />
         <Label>Safety number</Label>
         <Clay radius={18} style={{ padding: 14 }}>
@@ -207,12 +228,12 @@ export function SettingsScreen({
           ])} />
       </Section>
 
-      <Section title="Backup" i={5}>
+      <Section icon="download" title="Backup" i={5}>
         <Body dim>{settings.lastBackup ? 'Last backup: ' + new Date(settings.lastBackup).toLocaleDateString() : 'You have not made a backup yet.'}</Body>
         <Button title="Backup and restore" onPress={() => setSub('backup')} />
       </Section>
 
-      <Section title="App updates" i={6}>
+      <Section icon="upload" title="App updates" i={6}>
         <Body dim>Version {currentVersion()}</Body>
         <Button title={checking ? 'Checking…' : 'Check for updates'} disabled={checking} onPress={() => void onCheck()} />
         {upd?.kind === 'latest' && <Body>You have the latest version.</Body>}

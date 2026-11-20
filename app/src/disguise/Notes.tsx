@@ -6,6 +6,7 @@ import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated'
 import { Button, Clay, ClayPress, H1, Label } from '../ui/Clay';
 import { fonts, useTheme } from '../theme';
 import { useBackHandler } from '../core/backStack';
+import { mix } from '../colors';
 
 interface Note { id: number; title: string; body: string; ts: number }
 
@@ -82,7 +83,8 @@ export function Notes({ tryUnlock, titleUnlock, onSecret }: { tryUnlock: (code: 
         ListEmptyComponent={<Text style={{ color: t.textDim, fontFamily: fonts.body, textAlign: 'center', marginTop: 60 }}>{q ? 'No matching notes' : 'No notes yet. Tap + to write one.'}</Text>}
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(260)} layout={LinearTransition.duration(200)}>
-            <ClayPress onPress={() => setEditing(item)} radius={24} style={{ padding: 18 }} label={item.title}>
+            <ClayPress onPress={() => setEditing(item)} radius={24} color={mix(t.surface, [t.accent, t.accent2, t.good, t.danger][item.id % 4], t.dark ? 0.22 : 0.16)} style={{ padding: 18, paddingLeft: 22, overflow: 'hidden' }} label={item.title}>
+              <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, backgroundColor: [t.accent, t.accent2, t.good, t.danger][item.id % 4] }} />
               <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.bold, fontSize: 18 }}>{item.title}</Text>
               <Text numberOfLines={2} style={{ color: t.textDim, fontFamily: fonts.body, fontSize: 14, marginTop: 4 }}>{item.body || 'No text'}</Text>
               <Label style={{ marginTop: 10 }}>{new Date(item.ts).toLocaleDateString()}</Label>
