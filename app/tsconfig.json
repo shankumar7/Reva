@@ -2,5 +2,5 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": { "strict": true, "allowJs": true, "resolveJsonModule": true, "skipLibCheck": true },
   "include": ["**/*.ts", "**/*.tsx", "../shared/**/*.ts", "config/*.js"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "test"]
 }
