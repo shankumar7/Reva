@@ -21,6 +21,13 @@ if [ -n "$MYIP" ] && [ "$MYIP" != "$DNSIP" ]; then
   echo "         (continuing anyway; HTTPS will start working once the name is right)"
 fi
 
+say "Making sure there is enough memory (adds a 2 GB swap file on small servers)"
+if [ "$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)" -lt 3000 ] && ! swapon --show | grep -q .; then
+  fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+  chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 say "Installing Docker if needed"
 if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | sh; fi
 export DEBIAN_FRONTEND=noninteractive
