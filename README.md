@@ -4,6 +4,24 @@ A private, end-to-end encrypted chat for two people. On the phone it looks like 
 (Calculator, Notes and more). Reva's name never appears on the phone. Everything it uses is free:
 Oracle's Always Free server, DuckDNS, Let's Encrypt, Firebase's free push, and your own Google Drive.
 
+## Screenshots
+
+![Setup, chat in Nocturne, chat in Monstera, theme gallery](docs/screenshots/overview.png)
+
+These are the real screens rendered in a browser at phone size with made-up sample messages. They are not photos
+from a phone, so fonts and shadows can differ slightly on a device.
+
+| Chat, Midnight | Chat, Paper | Settings |
+|---|---|---|
+| <img src="docs/screenshots/chat-midnight.png" width="240"> | <img src="docs/screenshots/chat-paper.png" width="240"> | <img src="docs/screenshots/settings.png" width="240"> |
+
+| Theme gallery | Calculator disguise | Shared notes | Starred |
+|---|---|---|---|
+| <img src="docs/screenshots/theme-gallery.png" width="180"> | <img src="docs/screenshots/calculator.png" width="180"> | <img src="docs/screenshots/shared-notes.png" width="180"> | <img src="docs/screenshots/starred.png" width="180"> |
+
+To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform web`, serve the output folder, and open
+`?screen=chat&theme=nocturne` (other screens: `settings`, `themes`, `calc`, `notes`, `setup`, `starred`, `sharednotes`).
+
 ## Features
 
 **Chat**
