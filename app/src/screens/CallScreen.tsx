@@ -10,6 +10,7 @@ import { Clay, ClayPress } from '../ui/Clay';
 import { Icon } from '../ui/Icon';
 import { fonts, useTheme } from '../theme';
 import { session } from '../core/session';
+import { Disguise } from '../../modules/disguise';
 
 export function useCallState() {
   return useSyncExternalStore(session.call.subscribe, () => session.call.state);
@@ -32,6 +33,16 @@ export function CallScreen() {
   const ins = useSafeAreaInsets();
   const now = useClock();
   const ringing = call.phase === 'ringing';
+
+  // where the sound is going: Bluetooth, headset, speaker or earpiece
+  const [route, setRoute] = useState('');
+  useEffect(() => {
+    if (call.phase === 'idle' || call.phase === 'ringing') return setRoute('');
+    const read = () => setRoute(Disguise.callRoute());
+    read();
+    const i = setInterval(read, 1500);
+    return () => clearInterval(i);
+  }, [call.phase]);
 
   // buzz like an alarm while it rings
   useEffect(() => {
@@ -108,7 +119,7 @@ export function CallScreen() {
           </Svg>
           <Text style={{ color: t.text, fontFamily: fonts.display, fontSize: 70, lineHeight: 80 }}>{timer}</Text>
           <Text style={{ color: t.textDim, fontFamily: fonts.medium, fontSize: 15, marginTop: 2 }}>
-            {call.phase === 'live' ? 'Running' : call.phase === 'connecting' ? 'Starting…' : 'Waiting…'}
+            {call.phase === 'live' ? 'Running' : call.phase === 'connecting' ? 'Starting…' : 'Waiting…'}{route === 'bluetooth' ? ' · Bluetooth' : route === 'headset' ? ' · Headset' : ''}
           </Text>
         </Clay>
       )}

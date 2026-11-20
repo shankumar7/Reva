@@ -7,6 +7,7 @@ interface DisguiseNative {
   saveImageToGallery(path: string, displayName: string): Promise<boolean>;
   setCallAudio(on: boolean): void;
   hideRecents(hide: boolean): void;
+  callRoute(): string;
   callService(on: boolean): void;
   setSpeaker(on: boolean): void;
 }
@@ -24,6 +25,7 @@ export const Disguise = {
   currentAlias: (all: string[]) => native?.currentAlias(all) ?? null,
   pinShortcut: (label: string, png: string | null) => native?.pinShortcut(label, png) ?? Promise.resolve(false),
   setCallAudio: (on: boolean) => native?.setCallAudio(on),
+  callRoute: () => { try { return native?.callRoute() ?? 'none'; } catch { return 'none'; } },
   callService: (on: boolean) => { try { native?.callService(on); } catch { /* could not start: the call still works while the app is open */ } },
   hideRecents: (hide: boolean) => { try { native?.hideRecents(hide); } catch { /* older module */ } },
   setSpeaker: (on: boolean) => native?.setSpeaker(on),

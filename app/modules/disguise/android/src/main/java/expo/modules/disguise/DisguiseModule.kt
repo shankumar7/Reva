@@ -62,19 +62,18 @@ class DisguiseModule : Module() {
       if (on) ContextCompat.startForegroundService(ctx, i) else ctx.stopService(i)
     }
 
-    // Call sound: on = phone-call mode (echo cancelling, volume keys control the call), off = back to normal.
+    // Call sound: on = phone-call mode with echo cancelling. The sound goes to a connected Bluetooth headset,
+    // wired headset or earpiece by itself, and follows the headset if it connects or drops mid-call.
     Function("setCallAudio") { on: Boolean ->
-      val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-      if (on) {
-        am.mode = AudioManager.MODE_IN_COMMUNICATION
-      } else {
-        @Suppress("DEPRECATION") am.isSpeakerphoneOn = false
-        am.mode = AudioManager.MODE_NORMAL
-      }
+      CallAudio.setActive(ctx, on)
     }
+    // Loudspeaker on/off. Off goes back to the automatic choice above (Bluetooth first).
     Function("setSpeaker") { on: Boolean ->
-      val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-      @Suppress("DEPRECATION") am.isSpeakerphoneOn = on
+      CallAudio.setSpeaker(ctx, on)
+    }
+    // Where the sound is going right now: bluetooth, headset, speaker or earpiece.
+    Function("callRoute") {
+      CallAudio.route(ctx)
     }
 
     // Home-screen shortcut with any name and picture you like.

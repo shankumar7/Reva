@@ -1,5 +1,6 @@
 // Connects the call engine to the phone's real microphone, speaker and network (react-native-webrtc).
 import { Disguise } from '../../modules/disguise';
+import { PermissionsAndroid, Platform } from 'react-native';
 import { requestRecordingPermissionsAsync } from 'expo-audio';
 import { whileSystemUi } from './lockGuard';
 import type { PcLike, RtcDeps } from './call';
@@ -11,6 +12,10 @@ export const nativeRtc: RtcDeps = {
   async getMic() {
     const perm = await whileSystemUi(() => requestRecordingPermissionsAsync());
     if (!perm.granted) throw new Error('microphone not allowed');
+    // Android 12 and newer: needed to send the sound to a Bluetooth headset. A "no" only means the phone's own speaker is used.
+    if (Platform.OS === 'android' && Number(Platform.Version) >= 31) {
+      await whileSystemUi(() => PermissionsAndroid.request('android.permission.BLUETOOTH_CONNECT' as any)).catch(() => {});
+    }
     const stream = await rtc().mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
     (stream as any).__reva = true;
     return {
