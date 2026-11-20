@@ -4,6 +4,7 @@ interface DisguiseNative {
   setAlias(id: string, all: string[]): void;
   currentAlias(all: string[]): string | null;
   pinShortcut(label: string, pngBase64: string | null): Promise<boolean>;
+  saveImageToGallery(path: string, displayName: string): Promise<boolean>;
 }
 
 let native: DisguiseNative | null = null;
@@ -18,4 +19,5 @@ export const Disguise = {
   setAlias: (id: string, all: string[]) => native?.setAlias(id, all),
   currentAlias: (all: string[]) => native?.currentAlias(all) ?? null,
   pinShortcut: (label: string, png: string | null) => native?.pinShortcut(label, png) ?? Promise.resolve(false),
+  saveImage: (path: string, name: string) => native?.saveImageToGallery(path, name) ?? Promise.resolve(false),
 };

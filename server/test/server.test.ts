@@ -151,3 +151,22 @@ test('messages from a key we did not pair with are dropped', async () => {
   A.cl.disconnect(); B.cl.disconnect();
   await ctx.srv.close();
 });
+
+test('a picture-sized message (800 KB) passes through, in order, with queueing', async () => {
+  const ctx = await setup();
+  const { a, b } = await pair(ctx);
+  const A = mk(ctx, a, b);
+  A.cl.connect();
+  await until(() => A.cl.status === 'online');
+  const big = 'x'.repeat(800_000);
+  A.cl.send({ k: 'img', id: 'p1', ts: 1, data: big, thumb: 't', w: 100, h: 100, once: true } as any, 'p1');
+  A.cl.send({ k: 'pin', id: 'p1', on: true }, 'p2');
+  await until(() => A.sent.length === 2);
+  const B = mk(ctx, b, a);
+  B.cl.connect();
+  await until(() => B.inbox.length === 2);
+  assert.equal((B.inbox[0] as any).data.length, 800_000);
+  assert.equal(B.inbox[1].k, 'pin');
+  A.cl.disconnect(); B.cl.disconnect();
+  await ctx.srv.close();
+});

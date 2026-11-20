@@ -25,7 +25,11 @@ export type Envelope =
   | { k: 'react'; id: string; emoji: string | null }
   | { k: 'rcpt'; ids: string[]; state: 'delivered' | 'read' }
   | { k: 'typing'; on: boolean }
-  | { k: 'hi' }; // "thinking of you"
+  | { k: 'hi' } // "thinking of you"
+  | { k: 'img'; id: string; ts: number; data: string; thumb: string; w: number; h: number; once?: boolean; ttl?: number; replyTo?: string }
+  | { k: 'viewed'; id: string } // a view-once picture was opened
+  | { k: 'pin'; id: string; on: boolean }
+  | { k: 'snote'; id: string; title: string; body: string; ts: number; del?: boolean }; // shared notes
 
 /** What the first phone shows as a QR code. */
 export interface PairQr {

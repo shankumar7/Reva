@@ -1,6 +1,11 @@
 package expo.modules.disguise
 
 import android.content.ComponentName
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.File
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -56,6 +61,33 @@ class DisguiseModule : Module() {
         .setIntent(intent)
         .build()
       ShortcutManagerCompat.isRequestPinShortcutSupported(ctx) && ShortcutManagerCompat.requestPinShortcut(ctx, info, null)
+    }
+
+    // Copies a picture file into the phone's gallery (Pictures/Saved). Needs no permission on Android 10 and newer.
+    AsyncFunction("saveImageToGallery") { path: String, displayName: String ->
+      try {
+        val resolver = ctx.contentResolver
+        val values = ContentValues().apply {
+          put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+          put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+          if (Build.VERSION.SDK_INT >= 29) {
+            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Saved")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+          }
+        }
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return@AsyncFunction false
+        resolver.openOutputStream(uri)?.use { out ->
+          File(path.removePrefix("file://")).inputStream().use { it.copyTo(out) }
+        }
+        if (Build.VERSION.SDK_INT >= 29) {
+          values.clear()
+          values.put(MediaStore.Images.Media.IS_PENDING, 0)
+          resolver.update(uri, values, null, null)
+        }
+        true
+      } catch (e: Exception) {
+        false
+      }
     }
   }
 }

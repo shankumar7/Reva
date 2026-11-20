@@ -5,7 +5,8 @@ import type { Identity } from '../../../shared/crypto';
 import * as SecureStore from 'expo-secure-store';
 import { getCrypto, rawSodium } from './sodium';
 import { Vault } from './storage';
-import { Messages, openDb, wipeDb, type Msg } from './db';
+import { Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
+import * as Images from './images';
 
 class SecureOutbox implements ClientStore {
   private cache: OutboxItem[] = [];
@@ -35,18 +36,22 @@ export interface ChatState {
   messages: Msg[];
   pending: number;
   hiAt: number; // last "thinking of you" received
+  notes: SharedNote[];
 }
 
 type Listener = () => void;
 
 class Session {
-  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0 };
+  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [] };
   private listeners = new Set<Listener>();
   private client: RevaClient | null = null;
   private identity: Identity | null = null;
   private typingTimer: ReturnType<typeof setTimeout> | null = null;
   private lastTypingSent = 0;
   viewing = false; // the chat screen is open and in front
+  /** Set by the app from Settings. */
+  config = { ttlSeconds: 0, saveToGallery: false };
+  private purgeTimer: ReturnType<typeof setInterval> | null = null;
 
   subscribe = (l: Listener) => {
     this.listeners.add(l);
@@ -84,15 +89,19 @@ class Session {
         },
       },
     });
-    this.set({ ready: true, messages: await Messages.all(), pending: this.client.pending });
+    await this.purge();
+    this.set({ ready: true, messages: await Messages.all(), notes: await SharedNotes.all(), pending: this.client.pending });
+    this.purgeTimer = setInterval(() => void this.purge(), 30_000);
     this.client.connect();
     return true;
   }
 
   stop() {
+    if (this.purgeTimer) clearInterval(this.purgeTimer);
+    this.purgeTimer = null;
     this.client?.disconnect();
     this.client = null;
-    this.set({ ready: false, status: 'offline', peerOnline: false, messages: [], peerTyping: false });
+    this.set({ ready: false, status: 'offline', peerOnline: false, messages: [], peerTyping: false, notes: [] });
   }
 
   /** Called when Wi-Fi/mobile data changes or the app returns to the front. */
@@ -104,6 +113,7 @@ class Session {
   async panic() {
     this.stop();
     await wipeDb();
+    await Images.wipeAll();
     await Vault.wipeAll();
     await SecureStore.deleteItemAsync('k_outbox').catch(() => {});
   }
@@ -116,22 +126,60 @@ class Session {
     return Array.from(rawSodium.randombytes_buf(9) as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
   }
 
+  private async purge() {
+    try {
+      const gone = await Messages.purgeExpired(Date.now());
+      for (const id of gone) await Images.remove(id);
+      if (gone.length || this.state.messages.some((m) => m.exp > 0 && m.exp <= Date.now())) await this.reload();
+    } catch {
+      /* try again in 30 seconds */
+    }
+  }
+
+  private expFor(ts: number, ttl?: number) {
+    return ttl && ttl > 0 ? ts + ttl * 1000 : 0;
+  }
+
   private async onEnvelope(env: Envelope) {
     switch (env.k) {
       case 'msg': {
         await Messages.insert({
           id: env.id, ts: env.ts, mine: false, text: env.text, replyTo: env.replyTo ?? null, state: 3,
-          edited: false, deleted: false, rMine: null, rTheirs: null, once: !!env.once, seen: this.viewing,
+          once: !!env.once, seen: this.viewing, exp: this.expFor(env.ts, env.ttl),
         });
         this.client?.send({ k: 'rcpt', ids: [env.id], state: this.viewing ? 'read' : 'delivered' }, 'r' + this.newId());
         this.set({ peerTyping: false });
         break;
+      }
+      case 'img': {
+        const key = await Images.store(env.id, env.data);
+        await Messages.insert({
+          id: env.id, ts: env.ts, mine: false, kind: 'img', replyTo: env.replyTo ?? null, state: 3, once: !!env.once,
+          seen: this.viewing, exp: this.expFor(env.ts, env.ttl), thumb: env.once ? '' : env.thumb, w: env.w, h: env.h, imgKey: key,
+        });
+        this.client?.send({ k: 'rcpt', ids: [env.id], state: this.viewing ? 'read' : 'delivered' }, 'r' + this.newId());
+        this.set({ peerTyping: false });
+        if (this.config.saveToGallery && !env.once) void Images.saveToGallery(env.id, key).catch(() => {});
+        break;
+      }
+      case 'viewed':
+        await Messages.markViewed(env.id);
+        break;
+      case 'pin':
+        await Messages.pin(env.id, env.on);
+        break;
+      case 'snote': {
+        if (env.del) await SharedNotes.remove(env.id);
+        else await SharedNotes.put({ id: env.id, title: env.title, body: env.body, ts: env.ts });
+        this.set({ notes: await SharedNotes.all() });
+        return;
       }
       case 'edit':
         await Messages.edit(env.id, env.text);
         break;
       case 'del':
         await Messages.remove(env.id);
+        await Images.remove(env.id);
         break;
       case 'react':
         await Messages.react(env.id, 'theirs', env.emoji);
@@ -156,11 +204,9 @@ class Session {
     if (!t || !this.client) return;
     const id = this.newId();
     const ts = Date.now();
-    await Messages.insert({
-      id, ts, mine: true, text: t, replyTo: replyTo ?? null, state: 0, edited: false, deleted: false,
-      rMine: null, rTheirs: null, once: false, seen: true,
-    });
-    this.client.send({ k: 'msg', id, ts, text: t, replyTo: replyTo ?? undefined }, id);
+    const ttl = this.config.ttlSeconds;
+    await Messages.insert({ id, ts, mine: true, text: t, replyTo: replyTo ?? null, state: 0, seen: true, exp: this.expFor(ts, ttl) });
+    this.client.send({ k: 'msg', id, ts, text: t, replyTo: replyTo ?? undefined, ttl: ttl || undefined }, id);
     this.set({ pending: this.client.pending });
     await this.reload();
   }
@@ -178,6 +224,7 @@ class Session {
     const m = await Messages.get(id);
     if (!m || !m.mine) return;
     await Messages.remove(id);
+    await Images.remove(id);
     this.client?.send({ k: 'del', id }, 'd' + this.newId());
     await this.reload();
   }
@@ -207,6 +254,72 @@ class Session {
     await Messages.markSeen();
     this.client?.send({ k: 'rcpt', ids, state: 'read' }, 'rr' + this.newId());
     await this.reload();
+  }
+
+  /** Send a picture picked from the gallery or taken with the camera. */
+  async sendImage(asset: { uri: string; width: number }, once: boolean, replyTo?: string | null) {
+    if (!this.client) return;
+    const p = await Images.prepare(asset.uri, asset.width);
+    const id = this.newId();
+    const ts = Date.now();
+    const ttl = this.config.ttlSeconds;
+    // a view-once picture is not kept on the sender's phone at all
+    const key = once ? '' : await Images.store(id, p.data);
+    await Messages.insert({
+      id, ts, mine: true, kind: 'img', replyTo: replyTo ?? null, state: 0, seen: true, once, thumb: once ? '' : p.thumb,
+      w: p.w, h: p.h, imgKey: key, exp: this.expFor(ts, ttl),
+    });
+    this.client.send({ k: 'img', id, ts, data: p.data, thumb: p.thumb, w: p.w, h: p.h, once, ttl: ttl || undefined, replyTo: replyTo ?? undefined }, id);
+    this.set({ pending: this.client.pending });
+    await this.reload();
+  }
+
+  /** The full picture as base64, or null if it is gone. */
+  async imageData(id: string): Promise<string | null> {
+    const m = await Messages.get(id);
+    if (!m || m.deleted || !m.imgKey) return null;
+    try {
+      return await Images.load(id, m.imgKey);
+    } catch {
+      return null;
+    }
+  }
+
+  /** A view-once picture was looked at and closed: destroy it and tell the sender. */
+  async finishOnce(id: string) {
+    await Images.remove(id);
+    await Messages.markViewed(id);
+    this.client?.send({ k: 'viewed', id }, 'v' + this.newId());
+    await this.reload();
+  }
+
+  async saveImage(id: string): Promise<boolean> {
+    const m = await Messages.get(id);
+    if (!m || !m.imgKey || m.once) return false;
+    try {
+      return await Images.saveToGallery(id, m.imgKey);
+    } catch {
+      return false;
+    }
+  }
+
+  async pinMessage(id: string, on: boolean) {
+    await Messages.pin(id, on);
+    this.client?.send({ k: 'pin', id, on }, 'p' + this.newId());
+    await this.reload();
+  }
+
+  async saveNote(id: string | null, title: string, body: string) {
+    const n = { id: id ?? this.newId(), title: title.trim() || 'Untitled', body, ts: Date.now() };
+    await SharedNotes.put(n);
+    this.client?.send({ k: 'snote', ...n }, 'n' + this.newId());
+    this.set({ notes: await SharedNotes.all() });
+  }
+
+  async deleteNote(id: string) {
+    await SharedNotes.remove(id);
+    this.client?.send({ k: 'snote', id, title: '', body: '', ts: Date.now(), del: true }, 'n' + this.newId());
+    this.set({ notes: await SharedNotes.all() });
   }
 
   async search(q: string) {
