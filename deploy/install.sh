@@ -109,6 +109,11 @@ docker compose -f "$EDGE/docker-compose.yml" --project-directory "$EDGE" up -d
 docker compose -f "$TURNDIR/docker-compose.yml" --project-directory "$TURNDIR" up -d || echo "(the call relay did not start; chat still works, voice calls may fail on some networks)"
 docker exec edge-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
 
+sleep 4
+if docker ps --format '{{.Names}} {{.Status}}' | grep -q '^reva-turn .*Up'; then say "Call relay is running"; else
+  echo "(the call relay is not running; chat works. Its last log lines:)"; docker logs --tail 8 reva-turn 2>&1 | cut -c1-200
+fi
+
 say "Waiting for the server to answer over HTTPS"
 OK=0
 for i in $(seq 1 45); do
