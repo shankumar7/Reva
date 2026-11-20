@@ -1,0 +1,27 @@
+# Reva's own container: own database, own secrets, nothing shared with other apps.
+name: reva
+services:
+  reva:
+    build:
+      context: ./src
+      dockerfile: deploy/Dockerfile
+    container_name: reva
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    user: "1000:1000"
+    volumes:
+      - ./data:/data
+    networks: [edge]
+    mem_limit: 512m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+networks:
+  edge:
+    external: true

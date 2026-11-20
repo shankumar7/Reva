@@ -1,0 +1,23 @@
+# The front door: HTTPS for every app on this server. Each app adds its own file in ./sites.
+name: edge
+services:
+  caddy:
+    image: caddy:2
+    container_name: edge-caddy
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+volumes:
+  caddy_data:
+  caddy_config:
+networks:
+  edge:
+    external: true

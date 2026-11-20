@@ -1,0 +1,7 @@
+{
+	# no request logging that could contain addresses of people
+	servers {
+		log_credentials false
+	}
+}
+import /etc/caddy/sites/*.caddy
