@@ -13,6 +13,8 @@ import type { Settings as S } from '../core/storage';
 import { safetyNumber } from '../core/pairing';
 import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateResult } from '../core/update';
 import { Codes } from './Setup';
+import { Icon } from '../ui/Icon';
+import { Backdrop } from '../ui/Backdrop';
 
 export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
   const d = disguises.find((x) => x.id === id) ?? disguises[0];
@@ -95,7 +97,9 @@ export function SettingsScreen({
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 14, paddingBottom: ins.bottom + 40, gap: 26 }} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <Backdrop />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 14, paddingBottom: ins.bottom + 40, gap: 26 }} keyboardShouldPersistTaps="handled">
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <H1 style={{ fontSize: 46 }}>Settings</H1>
         <Pressable onPress={onBack} hitSlop={14}><Text style={{ color: t.accent, fontFamily: fonts.bold, fontSize: 16 }}>Done</Text></Pressable>
@@ -155,6 +159,18 @@ export function SettingsScreen({
             style={{ paddingVertical: 14, color: t.text, fontFamily: fonts.body, fontSize: 16 }} />
         </Clay>
         <Row label="Save received pictures to gallery by default" value={settings.saveToGallery} onChange={(v) => set({ saveToGallery: v })} />
+        <Label style={{ marginTop: 6 }}>Disappearing messages</Label>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          {[{ l: 'Off', v: 0 }, { l: '1 hour', v: 3600 }, { l: '1 day', v: 86400 }, { l: '1 week', v: 604800 }].map((o) => {
+            const on = settings.disappear === o.v;
+            return (
+              <ClayPress key={o.v} onPress={() => set({ disappear: o.v })} radius={16} color={on ? t.accent : undefined} style={{ paddingVertical: 10, paddingHorizontal: 16 }} label={o.l}>
+                <Text style={{ color: on ? t.onAccent : t.text, fontFamily: fonts.bold }}>{o.l}</Text>
+              </ClayPress>
+            );
+          })}
+        </View>
+        <Body dim>Applies to messages you send from now on. Ask your partner to set the same on their phone.</Body>
         <Row label="Lock the moment you leave the app" value={settings.autoLockSeconds === 0} onChange={(v) => set({ autoLockSeconds: v ? 0 : 30 })} />
       </Section>
 
@@ -187,6 +203,7 @@ export function SettingsScreen({
         {updMsg ? <Body dim>{updMsg}</Body> : null}
       </Section>
     </ScrollView>
+    </View>
   );
 }
 

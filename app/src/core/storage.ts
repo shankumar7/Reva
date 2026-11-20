@@ -10,11 +10,12 @@ export interface Settings {
   autoLockSeconds: number; // 0 = immediately
   notifications: boolean;
   nickname: string; // what you call your partner (shown in the chat)
+  disappear: number; // seconds until new messages disappear, 0 = never
 }
 
 export const defaultSettings: Settings = {
   theme: 'auto', disguise: 'Calculator', notesUnlock: 'search', saveToGallery: false,
-  autoLockSeconds: 0, notifications: true, nickname: 'Us',
+  autoLockSeconds: 0, notifications: true, nickname: 'Us', disappear: 0,
 };
 
 export interface Pairing {

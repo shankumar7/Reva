@@ -23,9 +23,10 @@ import { Setup } from './src/screens/Setup';
 import { Chat } from './src/screens/Chat';
 import { DecoyChat } from './src/screens/DecoyChat';
 import { SettingsScreen } from './src/screens/Settings';
+import { SharedNotesScreen } from './src/screens/SharedNotes';
 import { Disguise } from './modules/disguise';
 
-type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings';
+type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes';
 
 export default function App() {
   const [fontsReady] = useFonts({ Anton_400Regular, Inter_400Regular, Inter_500Medium, Inter_700Bold });
@@ -55,7 +56,7 @@ export default function App() {
   useEffect(() => { void boot(); }, [boot]);
 
   // screenshots and screen recording are blocked, and the recents thumbnail is blank, while anything private is open
-  const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup';
+  const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup' || mode === 'notes';
   useEffect(() => {
     if (secret) void ScreenCapture.preventScreenCaptureAsync('private').catch(() => {});
     else void ScreenCapture.allowScreenCaptureAsync('private').catch(() => {});
@@ -77,7 +78,7 @@ export default function App() {
   }, [settings.autoLockSeconds, mode]);
   function lock() {
     session.viewing = false;
-    setMode((m) => (m === 'chat' || m === 'decoy' || m === 'settings' ? 'disguise' : m));
+    setMode((m) => (m === 'chat' || m === 'decoy' || m === 'settings' || m === 'notes' ? 'disguise' : m));
   }
 
   // quick reconnect when the network changes (Wi-Fi to mobile data etc.)
@@ -128,6 +129,10 @@ export default function App() {
     setMode('disguise');
   }
 
+  useEffect(() => {
+    session.config = { ttlSeconds: settings.disappear, saveToGallery: settings.saveToGallery };
+  }, [settings.disappear, settings.saveToGallery]);
+
   async function changeSettings(s: Settings) {
     setSettings(s);
     await Vault.saveSettings(s);
@@ -148,7 +153,8 @@ export default function App() {
               {mode === 'disguise' && (kind === 'calculator'
                 ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} />
                 : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} />)}
-              {mode === 'chat' && <Chat nickname={settings.nickname} onSettings={() => setMode('settings')} />}
+              {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} />}
+              {mode === 'notes' && <SharedNotesScreen onBack={() => setMode('chat')} />}
               {mode === 'decoy' && <DecoyChat nickname={settings.nickname} />}
               {mode === 'settings' && (
                 <SettingsScreen settings={settings} onChange={(s) => void changeSettings(s)} onBack={() => setMode(from)} onLock={lock} onPanic={() => void doPanic()} />
