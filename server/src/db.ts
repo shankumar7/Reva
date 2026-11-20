@@ -25,6 +25,9 @@ export class Store {
       );
       CREATE INDEX IF NOT EXISTS q_to ON queue(to_slot, id);
     `);
+    const cols = (this.db.prepare('PRAGMA table_info(devices)').all() as unknown as { name: string }[]).map((c) => c.name);
+    if (!cols.includes('push_token')) this.db.exec('ALTER TABLE devices ADD COLUMN push_token TEXT');
+    if (!cols.includes('push_kind')) this.db.exec('ALTER TABLE devices ADD COLUMN push_kind TEXT');
   }
 
   devices(): Device[] {
@@ -47,6 +50,15 @@ export class Store {
     const slot = list.length === 0 ? 1 : 2;
     this.db.prepare('INSERT INTO devices (slot, sign_pk, created) VALUES (?,?,?)').run(slot, signPk, Date.now());
     return slot;
+  }
+
+  setPush(slot: number, token: string | null, kind: string | null) {
+    this.db.prepare('UPDATE devices SET push_token = ?, push_kind = ? WHERE slot = ?').run(token, kind, slot);
+  }
+
+  getPush(slot: number): { token: string; kind: string } | null {
+    const r = this.db.prepare('SELECT push_token AS token, push_kind AS kind FROM devices WHERE slot = ?').get(slot) as { token: string | null; kind: string | null } | undefined;
+    return r?.token ? { token: r.token, kind: r.kind ?? 'calculator' } : null;
   }
 
   enqueue(toSlot: number, blob: string): number {

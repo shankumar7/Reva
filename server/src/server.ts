@@ -8,6 +8,7 @@ import { makeCrypto } from '../../shared/crypto.js';
 import type { ClientMsg, ServerMsg } from '../../shared/protocol.js';
 import { Store } from './db.js';
 import { latestBackup, makeBackup } from './backup.js';
+import type { Fcm } from './fcm.js';
 
 export interface Options {
   dbPath: string;
@@ -17,6 +18,7 @@ export interface Options {
   updatesDir?: string;
   backupDir?: string;
   backupKey?: string; // 64 hex characters
+  fcm?: Fcm | null; // free push notifications, optional
   maxMsgBytes?: number;
 }
 
@@ -63,6 +65,19 @@ export async function createServer(opts: Options) {
   function deliverPending(cn: Conn) {
     if (cn.slot == null) return;
     for (const m of store.pending(cn.slot)) send(cn.ws, { t: 'msg', id: m.id, blob: m.blob, ts: m.ts });
+  }
+
+  // at most one wake-up per 20 seconds, however many messages arrive
+  const lastPush = new Map<number, number>();
+  function wake(slot: number) {
+    if (!opts.fcm) return;
+    const p = store.getPush(slot);
+    if (!p) return;
+    if (Date.now() - (lastPush.get(slot) ?? 0) < 20_000) return;
+    lastPush.set(slot, Date.now());
+    void opts.fcm.send(p.token, p.kind).then((r) => {
+      if (r === 'gone') store.setPush(slot, null, null);
+    });
   }
 
   function announce(slot: number) {
@@ -194,6 +209,14 @@ export async function createServer(opts: Options) {
         send(ws, { t: 'sent', cid: m.cid, id });
         const peer = online(to);
         if (peer) send(peer.ws, { t: 'msg', id, blob: m.blob, ts: Date.now() });
+        else wake(to);
+        return;
+      }
+
+      if (m.t === 'push') {
+        if (typeof m.token === 'string' && m.token.length > 20 && m.token.length < 400) {
+          store.setPush(cn.slot, m.token, m.kind === 'notes' ? 'notes' : 'calculator');
+        }
         return;
       }
 

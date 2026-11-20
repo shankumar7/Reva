@@ -5,6 +5,7 @@ export type ClientMsg =
   | { t: 'auth'; signPk: string; sig: string }
   | { t: 'send'; cid: string; blob: string; ephemeral?: boolean }
   | { t: 'ack'; ids: number[] }
+  | { t: 'push'; token: string; kind?: 'calculator' | 'notes' } // phone's notification address (no content ever goes through it)
   | { t: 'ping' };
 
 export type ServerMsg =

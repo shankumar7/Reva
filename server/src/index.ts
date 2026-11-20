@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { createServer } from './server.js';
+import { Fcm } from './fcm.js';
 
 const token = process.env.SETUP_TOKEN ?? '';
 if (token.length < 16) {
@@ -10,7 +11,21 @@ if (token.length < 16) {
 const dataDir = process.env.DATA_DIR ?? '/data';
 fs.mkdirSync(dataDir, { recursive: true });
 
+let fcm: Fcm | null = null;
+const fcmFile = process.env.FCM_SERVICE_ACCOUNT_FILE ?? '/secrets/fcm.json';
+if (fs.existsSync(fcmFile)) {
+  try {
+    fcm = new Fcm(fcmFile);
+    console.log('push notifications: on');
+  } catch (e) {
+    console.error('push notifications: off,', (e as Error).message);
+  }
+} else {
+  console.log('push notifications: off (no service account file)');
+}
+
 const srv = await createServer({
+  fcm,
   dbPath: `${dataDir}/chat.db`,
   setupToken: token,
   port: Number(process.env.PORT ?? 8080),
