@@ -414,10 +414,9 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
       <RNAnimated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }], maxWidth: '84%' }}>
         <Pressable onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); if (!m.deleted) onMenu(); }} delayLongPress={280}>
           <Clay radius={22} color={bg} depth={0.55} style={[{ paddingHorizontal: isImg && !m.once && !m.deleted ? 6 : 14, paddingVertical: isImg && !m.once && !m.deleted ? 6 : 9 }, tail]}>
-            {m.pinned && !m.deleted && <View style={{ position: 'absolute', top: 6, [mine ? 'left' : 'right']: 8 }}><Icon name="pin" size={12} color={fg} /></View>}
             {quoted && !m.deleted && (
-              <View style={{ borderLeftWidth: 3, borderLeftColor: t.accent, paddingLeft: 8, marginBottom: 6, marginHorizontal: isImg ? 8 : 0, opacity: 0.85 }}>
-                <Text numberOfLines={2} style={{ color: fg, fontFamily: fonts.body, fontSize: 13 }}>{quoted.deleted ? 'Deleted message' : quoted.kind === 'img' ? 'Photo' : quoted.text}</Text>
+              <View style={{ borderLeftWidth: 3, borderLeftColor: fg, paddingLeft: 8, paddingVertical: 4, paddingRight: 8, marginBottom: 6, marginHorizontal: isImg ? 8 : 0, borderRadius: 8, backgroundColor: fg + '1F' }}>
+                <Text numberOfLines={2} style={{ color: fg, opacity: 0.85, fontFamily: fonts.body, fontSize: 13 }}>{quoted.deleted ? 'Deleted message' : quoted.kind === 'img' ? 'Photo' : quoted.text}</Text>
               </View>
             )}
             {m.deleted ? (
@@ -428,6 +427,7 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
             {(last || m.deleted || isImg) && (
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 3, paddingRight: isImg && !m.once ? 6 : 0 }}>
                 {m.edited && !m.deleted && <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>edited</Text>}
+                {m.pinned && !m.deleted && <Icon name="pin" size={10} color={fg} />}
                 {m.starred && <Icon name="star" size={10} color={fg} />}
                 {m.exp > 0 && <Icon name="timer" size={10} color={fg} />}
                 <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>

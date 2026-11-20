@@ -1,8 +1,7 @@
 import { registerRootComponent } from 'expo';
 
-import App from './App';
+// EXPO_PUBLIC_PREVIEW is only set when making the browser preview used for checking the design.
+// The check below is replaced by a constant at build time, so the real app never contains the preview code.
+const Root = process.env.EXPO_PUBLIC_PREVIEW === '1' ? require('./preview/Preview').default : require('./App').default;
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+registerRootComponent(Root);

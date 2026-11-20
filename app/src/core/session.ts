@@ -332,6 +332,11 @@ class Session {
     }
   }
 
+  /** Only for the browser preview used to check the design: shows sample messages. */
+  seedForPreview(p: Partial<ChatState>) {
+    this.set({ ready: true, status: 'online', peerOnline: true, ...p });
+  }
+
   /** Turn on notifications for this phone (asks Android for permission the first time). */
   async enablePush(kind: 'calculator' | 'notes' | 'chat') {
     const r = await getPushToken();

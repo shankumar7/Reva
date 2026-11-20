@@ -45,7 +45,7 @@ export function ThemeGallery({ theme, accent, onTheme, onAccent, onBack }: {
   const card = (th: Theme, id: string, name: string, mood: string, i: number) => {
     const on = theme === id;
     return (
-      <Animated.View key={id} entering={FadeInDown.delay(Math.min(i, 10) * 35).duration(240)} layout={LinearTransition.duration(200)} style={{ width: '48%' }}>
+      <Animated.View key={id} entering={FadeInDown.delay(Math.min(i, 10) * 35).duration(240)} layout={LinearTransition.duration(200)} style={{ width: '47%' }}>
         <ClayPress onPress={() => onTheme(id)} radius={24} style={{ padding: 10, width: '100%', borderWidth: on ? 2 : 0, borderColor: t.accent }} label={name + ' theme'}>
           <Mini th={accent && on ? resolveTheme(id, t.dark, accent) : th} />
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 6 }}>

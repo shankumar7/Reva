@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { ScrollView, Text, TextInput, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { Body, Button, Clay, H1, Label } from '../ui/Clay';
+import { Body, Button, Clay, ClayPress, H1, Label } from '../ui/Clay';
+import { Icon, type IconName } from '../ui/Icon';
+import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import { ScanQr } from './ScanQr';
 import { ShowQr } from './ShowQr';
@@ -48,15 +50,35 @@ export function Setup({ onDone, startError, initialStep }: { onDone: () => void;
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 24, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <Backdrop />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 24, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
       <Animated.View key={step} entering={FadeIn.duration(240)} exiting={FadeOut.duration(120)} style={{ gap: 18 }}>
         {step === 'role' && (
           <>
-            <H1>Set up</H1>
+            <View style={{ marginTop: 18, marginBottom: 10 }}>
+              <H1 style={{ fontSize: 76, lineHeight: 74 }}>Our</H1>
+              <H1 style={{ fontSize: 76, lineHeight: 74, color: t.accent }}>Private</H1>
+              <H1 style={{ fontSize: 76, lineHeight: 74 }}>Space</H1>
+            </View>
             <Body dim>Two phones, one private space. One of you starts, the other joins by scanning.</Body>
-            <Button title="I am starting" onPress={() => setStep('server')} />
-            <Button title="My partner already started" kind="plain" onPress={() => setStep('scanPartner')} />
-            <Button title="Restore from a backup" kind="plain" onPress={() => setStep('restore')} />
+            <View style={{ gap: 14, marginTop: 8 }}>
+              {([
+                ['plus', 'I am starting', 'Create the space and show a code to your partner', () => setStep('server')],
+                ['camera', 'My partner already started', 'Scan their code to join', () => setStep('scanPartner')],
+                ['download', 'Restore from a backup', 'Bring back an earlier chat from a file', () => setStep('restore')],
+              ] as [IconName, string, string, () => void][]).map(([icon, title, sub, go], i) => (
+                <ClayPress key={title} onPress={go} radius={26} color={i === 0 ? t.accent : undefined} style={{ padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 }} label={title}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: i === 0 ? t.onAccent + '22' : t.accent + '33' }}>
+                    <Icon name={icon} size={22} color={i === 0 ? t.onAccent : t.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: i === 0 ? t.onAccent : t.text, fontFamily: fonts.bold, fontSize: 17 }}>{title}</Text>
+                    <Text style={{ color: i === 0 ? t.onAccent : t.textDim, opacity: i === 0 ? 0.8 : 1, fontFamily: fonts.body, fontSize: 13, marginTop: 2 }}>{sub}</Text>
+                  </View>
+                </ClayPress>
+              ))}
+            </View>
           </>
         )}
 
@@ -129,6 +151,7 @@ export function Setup({ onDone, startError, initialStep }: { onDone: () => void;
         {err ? <Text style={{ color: t.danger, fontFamily: fonts.medium }}>{err}</Text> : null}
       </Animated.View>
     </ScrollView>
+    </View>
   );
 }
 

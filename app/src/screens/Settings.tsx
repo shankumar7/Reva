@@ -136,9 +136,9 @@ export function SettingsScreen({
           {disguises.filter((d) => d.kind !== 'chat').map((d) => {
             const on = settings.disguise === d.id;
             return (
-              <ClayPress key={d.id} onPress={() => void pickDisguise(d.id)} radius={20} style={{ padding: 10, width: '22%', alignItems: 'center', borderWidth: on ? 2 : 0, borderColor: t.accent }} label={d.label}>
+              <ClayPress key={d.id} onPress={() => void pickDisguise(d.id)} radius={20} style={{ padding: 8, width: '22.5%', alignItems: 'center', borderWidth: on ? 2 : 0, borderColor: t.accent }} label={d.label}>
                 <DisguiseIcon id={d.id} size={44} />
-                <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.medium, fontSize: 11, marginTop: 6 }}>{d.label}</Text>
+                <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.medium, fontSize: 10, marginTop: 6 }}>{d.label}</Text>
               </ClayPress>
             );
           })}
