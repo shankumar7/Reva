@@ -13,12 +13,13 @@ export interface Settings {
   lastBackup: number; // when the last backup file was made (ms), 0 = never
   notifications: boolean;
   nickname: string; // what you call your partner (shown in the chat)
+  since: string; // 'together since' date, YYYY-MM-DD, or empty
   disappear: number; // seconds until new messages disappear, 0 = never
 }
 
 export const defaultSettings: Settings = {
   theme: 'auto', accent: '', disguise: 'Calculator', notesUnlock: 'search', saveToGallery: false,
-  autoLockSeconds: 0, cover: true, lastBackup: 0, notifications: true, nickname: 'Us', disappear: 0,
+  autoLockSeconds: 0, cover: true, lastBackup: 0, notifications: true, nickname: 'Us', since: '', disappear: 0,
 };
 
 export interface Pairing {

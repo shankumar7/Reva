@@ -36,6 +36,15 @@ export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
 }
 
 /** A group of settings in its own soft card, with a small icon so you can find things at a glance. */
+/** How many days since the date you set (day 1 is that day). */
+function daysTogether(since: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(since);
+  if (!m) return 0;
+  const d = new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  if (Number.isNaN(d) || d > Date.now()) return 0;
+  return Math.floor((Date.now() - d) / 86400000) + 1;
+}
+
 function Section({ title, icon, children, i }: { title: string; icon: IconName; children: React.ReactNode; i: number }) {
   const t = useTheme();
   return (
@@ -128,7 +137,7 @@ export function SettingsScreen({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: t.onAccent, fontFamily: fonts.display, fontSize: 26, textTransform: 'uppercase' }}>{settings.nickname || 'Us'}</Text>
-            <Text style={{ color: t.onAccent, opacity: 0.8, fontFamily: fonts.medium, fontSize: 12 }}>Private and end-to-end encrypted</Text>
+            <Text style={{ color: t.onAccent, opacity: 0.8, fontFamily: fonts.medium, fontSize: 12 }}>{daysTogether(settings.since) ? `Day ${daysTogether(settings.since)} together ♥` : 'Private and end-to-end encrypted'}</Text>
           </View>
           <Icon name="lock" size={22} color={t.onAccent} />
         </Clay>
@@ -188,6 +197,11 @@ export function SettingsScreen({
         <Label>What you call your partner</Label>
         <Clay radius={18} style={{ paddingHorizontal: 16 }}>
           <TextInput value={settings.nickname} onChangeText={(v) => set({ nickname: v.slice(0, 20) })} placeholderTextColor={t.textDim}
+            style={{ paddingVertical: 14, color: t.text, fontFamily: fonts.body, fontSize: 16 }} />
+        </Clay>
+        <Label>Together since (optional, like 2023-02-14)</Label>
+        <Clay radius={18} style={{ paddingHorizontal: 16 }}>
+          <TextInput value={settings.since} onChangeText={(v) => set({ since: v.replace(/[^0-9-]/g, '').slice(0, 10) })} placeholder="YYYY-MM-DD" placeholderTextColor={t.textDim} keyboardType="numbers-and-punctuation"
             style={{ paddingVertical: 14, color: t.text, fontFamily: fonts.body, fontSize: 16 }} />
         </Clay>
         <Row label="Save received pictures to gallery by default" value={settings.saveToGallery} onChange={(v) => set({ saveToGallery: v })} />

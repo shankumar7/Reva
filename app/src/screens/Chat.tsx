@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  ActivityIndicator, Animated as RNAnimated, FlatList, Image, KeyboardAvoidingView, Modal, PanResponder, Pressable, Text, TextInput, View,
+  ActivityIndicator, Animated as RNAnimated, FlatList, Image, KeyboardAvoidingView, Linking, Modal, PanResponder, Pressable, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -544,7 +544,7 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
             {m.deleted ? (
               <Text style={{ color: fg, opacity: 0.6, fontFamily: fonts.body, fontStyle: 'italic', fontSize: 15 }}>Message deleted</Text>
             ) : m.kind === 'aud' ? <VoiceBody m={m} color={fg} /> : isImg ? imageBody() : (
-              <Text style={{ color: fg, fontFamily: fonts.body, fontSize: 16, lineHeight: 22 }}>{m.text}</Text>
+              <Linkified text={m.text} color={fg} />
             )}
             {(last || m.deleted || (isImg && (m.once || !!m.text))) && (
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 3, paddingRight: isImg && !m.once ? 6 : 0 }}>
@@ -570,6 +570,22 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
       </RNAnimated.View>
       {(m.rMine || m.rTheirs) && <View style={{ height: 10 }} />}
     </Animated.View>
+  );
+}
+
+/** Message text where web links can be tapped. */
+function Linkified({ text, color }: { text: string; color: string }) {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <Text style={{ color, fontFamily: fonts.body, fontSize: 16, lineHeight: 22 }}>
+      {parts.map((p, i) =>
+        /^https?:\/\//.test(p) ? (
+          <Text key={i} onPress={() => void Linking.openURL(p).catch(() => {})} style={{ textDecorationLine: 'underline', fontFamily: fonts.medium }}>{p}</Text>
+        ) : (
+          p
+        ),
+      )}
+    </Text>
   );
 }
 
