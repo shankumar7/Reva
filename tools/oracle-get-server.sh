@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Run this in Oracle Cloud Shell. It creates the free Arm server for you, and keeps
+# Run this in Oracle Cloud Shell, or on an always-on computer such as a Raspberry Pi (see docs/ORACLE-ON-PI.md).
+# It creates the free Arm server for you, and keeps
 # trying politely until Oracle has room (Arm servers are often "out of capacity").
 #
 #   bash oracle-get-server.sh
 #
 # Safe to stop (Ctrl+C) and run again: it never creates a second server or a second network.
-# Keep the browser tab open while it runs. Cloud Shell closes after about 20 minutes with no typing,
-# so press Enter now and then. If it closes, just run the script again.
+# In Cloud Shell keep the browser tab open (it closes after about 20 minutes with no typing, so press Enter now
+# and then). On a Pi or other computer it can run all night: start it with  nohup bash oracle-get-server.sh > reva-oracle.log 2>&1 &
 set -uo pipefail
 
 NAME="reva-server"
@@ -17,10 +18,10 @@ WAIT_IF_RATE_LIMITED=900 # seconds to wait if Oracle says "too many requests"
 say() { printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die() { printf '\nSTOPPED: %s\n' "$*" >&2; exit 1; }
 
-command -v oci >/dev/null || die "This must be run inside Oracle Cloud Shell."
+command -v oci >/dev/null || die "The Oracle command-line tool (oci) is missing. Use Oracle Cloud Shell, or see docs/ORACLE-ON-PI.md."
 T="${OCI_TENANCY:-}"
 [ -n "$T" ] || T="$(oci iam compartment list --all --compartment-id-in-subtree false --query 'data[0]."compartment-id"' --raw-output 2>/dev/null)"
-[ -n "$T" ] || die "Could not find your account id. Close and reopen Cloud Shell, then try again."
+[ -n "$T" ] || die "Could not find your account id. In Cloud Shell: close and reopen it. On a Pi: run  oci setup config  again."
 
 # 1. SSH key (RSA, because Cloud Shell does not allow ed25519)
 if [ ! -f "$KEY.pub" ]; then
@@ -127,6 +128,6 @@ while true; do
       die "Oracle gave an error I do not recognise (shown above). Send it to Claude."
     fi
   done
-  say "Next try in $((WAIT_BETWEEN_TRIES / 60)) minutes. Leave this tab open. (Press Enter now and then.)"
+  say "Next try in $((WAIT_BETWEEN_TRIES / 60)) minutes. Leave this running. (Cloud Shell: press Enter now and then.)"
   sleep "$WAIT_BETWEEN_TRIES"
 done
