@@ -7,6 +7,9 @@ import { getCrypto, rawSodium } from './sodium';
 import { Vault } from './storage';
 import { Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
 import * as Images from './images';
+import * as FileSystem from 'expo-file-system/legacy';
+import type JSZip from 'jszip';
+import { IMAGE_EXT, waId, type WaMessage } from './whatsapp';
 
 class SecureOutbox implements ClientStore {
   private cache: OutboxItem[] = [];
@@ -301,6 +304,51 @@ class Session {
     } catch {
       return false;
     }
+  }
+
+  async starMessage(id: string, on: boolean) {
+    await Messages.star(id, on); // stars are private: nothing is sent
+    await this.reload();
+  }
+
+  /** Brings messages from a WhatsApp export into this phone. Nothing is sent to your partner. */
+  async importWhatsApp(
+    parsed: WaMessage[], meName: string, zip: JSZip | null, includePhotos: boolean, onProgress: (done: number, total: number) => void,
+  ): Promise<{ added: number; photos: number; skipped: number }> {
+    let added = 0, photos = 0, skipped = 0;
+    const total = parsed.length;
+    for (let i = 0; i < parsed.length; i++) {
+      const w = parsed[i];
+      const id = waId(w, i);
+      if (i % 20 === 0) onProgress(i, total);
+      if (await Messages.exists(id)) { skipped++; continue; }
+      const mine = w.sender === meName;
+      try {
+        if (w.attachment && IMAGE_EXT.test(w.attachment) && includePhotos && zip && photos < 400) {
+          const f = zip.file(w.attachment) ?? zip.file(new RegExp('(^|/)' + w.attachment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'))[0];
+          if (f) {
+            const b64 = await f.async('base64');
+            const tmp = FileSystem.cacheDirectory + 'wa-' + i + '.jpg';
+            await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
+            const p = await Images.prepare(tmp, 2000);
+            await FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
+            const key = await Images.store(id, p.data);
+            await Messages.insert({ id, ts: w.ts, mine, kind: 'img', text: w.text, state: 3, seen: true, thumb: p.thumb, w: p.w, h: p.h, imgKey: key });
+            added++; photos++;
+            continue;
+          }
+        }
+        const text = w.attachment ? (w.text ? w.text + '\n' : '') + '[' + w.attachment + ']' : w.text;
+        if (!text.trim()) { skipped++; continue; }
+        await Messages.insert({ id, ts: w.ts, mine, text, state: 3, seen: true });
+        added++;
+      } catch {
+        skipped++;
+      }
+    }
+    onProgress(total, total);
+    await this.reload();
+    return { added, photos, skipped };
   }
 
   async pinMessage(id: string, on: boolean) {

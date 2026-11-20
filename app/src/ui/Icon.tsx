@@ -23,6 +23,12 @@ const ICONS = {
   trash: ['M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'],
   edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13.5 6.5l4 4'],
   back: ['M15 5l-7 7 7 7'],
+  star: ['M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'],
+  more: [circle(5, 12, 1.2), circle(12, 12, 1.2), circle(19, 12, 1.2)],
+  upload: ['M12 15V3M7 8l5-5 5 5M5 21h14'],
+  mic: ['M9 4a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0z', 'M5 11a7 7 0 0 0 14 0M12 18v3'],
+  play: ['M7 4l13 8-13 8z'],
+  stop: ['M6 6h12v12H6z'],
   lock: ['M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V8a4 4 0 0 1 8 0v3'],
 } as const;
 export type IconName = keyof typeof ICONS;

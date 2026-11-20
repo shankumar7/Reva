@@ -24,6 +24,7 @@ export interface Msg {
   w: number;
   h: number;
   imgKey: string; // key for the encrypted picture file
+  starred: boolean; // only on this phone
 }
 
 export interface SharedNote { id: string; title: string; body: string; ts: number }
@@ -31,13 +32,13 @@ export interface SharedNote { id: string; title: string; body: string; ts: numbe
 interface Row {
   id: string; ts: number; mine: number; kind: string; text: string; reply_to: string | null; state: number;
   edited: number; deleted: number; r_mine: string | null; r_theirs: string | null; once: number; viewed: number; seen: number;
-  pinned: number; exp: number; thumb: string; w: number; h: number; img_key: string;
+  pinned: number; exp: number; thumb: string; w: number; h: number; img_key: string; starred: number;
 }
 const fromRow = (r: Row): Msg => ({
   id: r.id, ts: r.ts, mine: !!r.mine, kind: r.kind === 'img' ? 'img' : 'text', text: r.text, replyTo: r.reply_to,
   state: r.state as MsgState, edited: !!r.edited, deleted: !!r.deleted, rMine: r.r_mine, rTheirs: r.r_theirs,
   once: !!r.once, viewed: !!r.viewed, seen: !!r.seen, pinned: !!r.pinned, exp: r.exp ?? 0,
-  thumb: r.thumb ?? '', w: r.w ?? 0, h: r.h ?? 0, imgKey: r.img_key ?? '',
+  thumb: r.thumb ?? '', w: r.w ?? 0, h: r.h ?? 0, imgKey: r.img_key ?? '', starred: !!r.starred,
 });
 
 const NAME = 'chat-v1.db';
@@ -73,6 +74,7 @@ export async function openDb(): Promise<SQLite.SQLiteDatabase> {
   await add('w', 'INTEGER NOT NULL DEFAULT 0');
   await add('h', 'INTEGER NOT NULL DEFAULT 0');
   await add('img_key', "TEXT NOT NULL DEFAULT ''");
+  await add('starred', 'INTEGER NOT NULL DEFAULT 0');
   db = d;
   return d;
 }
@@ -100,11 +102,11 @@ export const Messages = {
   async insert(m: Partial<Msg> & Pick<Msg, 'id' | 'ts' | 'mine'>) {
     const d = await openDb();
     await d.runAsync(
-      `INSERT OR IGNORE INTO messages (id,ts,mine,kind,text,reply_to,state,edited,deleted,r_mine,r_theirs,once,viewed,seen,pinned,exp,thumb,w,h,img_key)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT OR IGNORE INTO messages (id,ts,mine,kind,text,reply_to,state,edited,deleted,r_mine,r_theirs,once,viewed,seen,pinned,exp,thumb,w,h,img_key,starred)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       m.id, m.ts, m.mine ? 1 : 0, m.kind ?? 'text', m.text ?? '', m.replyTo ?? null, m.state ?? 0, m.edited ? 1 : 0, m.deleted ? 1 : 0,
       m.rMine ?? null, m.rTheirs ?? null, m.once ? 1 : 0, m.viewed ? 1 : 0, m.seen ? 1 : 0, m.pinned ? 1 : 0, m.exp ?? 0,
-      m.thumb ?? '', m.w ?? 0, m.h ?? 0, m.imgKey ?? '',
+      m.thumb ?? '', m.w ?? 0, m.h ?? 0, m.imgKey ?? '', m.starred ? 1 : 0,
     );
   },
   async setState(id: string, state: MsgState) {
@@ -122,6 +124,14 @@ export const Messages = {
   async react(id: string, who: 'mine' | 'theirs', emoji: string | null) {
     const d = await openDb();
     await d.runAsync(`UPDATE messages SET ${who === 'mine' ? 'r_mine' : 'r_theirs'} = ? WHERE id = ?`, emoji, id);
+  },
+  async star(id: string, on: boolean) {
+    const d = await openDb();
+    await d.runAsync('UPDATE messages SET starred = ? WHERE id = ?', on ? 1 : 0, id);
+  },
+  async exists(id: string): Promise<boolean> {
+    const d = await openDb();
+    return !!(await d.getFirstAsync('SELECT 1 FROM messages WHERE id = ?', id));
   },
   async pin(id: string, on: boolean) {
     const d = await openDb();

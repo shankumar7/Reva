@@ -24,9 +24,11 @@ import { Chat } from './src/screens/Chat';
 import { DecoyChat } from './src/screens/DecoyChat';
 import { SettingsScreen } from './src/screens/Settings';
 import { SharedNotesScreen } from './src/screens/SharedNotes';
+import { StarredScreen } from './src/screens/Starred';
+import { ImportWhatsApp } from './src/screens/ImportWhatsApp';
 import { Disguise } from './modules/disguise';
 
-type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes';
+type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes' | 'starred' | 'import';
 
 export default function App() {
   const [fontsReady] = useFonts({ Anton_400Regular, Inter_400Regular, Inter_500Medium, Inter_700Bold });
@@ -56,7 +58,7 @@ export default function App() {
   useEffect(() => { void boot(); }, [boot]);
 
   // screenshots and screen recording are blocked, and the recents thumbnail is blank, while anything private is open
-  const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup' || mode === 'notes';
+  const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup' || mode === 'notes' || mode === 'starred' || mode === 'import';
   useEffect(() => {
     if (secret) void ScreenCapture.preventScreenCaptureAsync('private').catch(() => {});
     else void ScreenCapture.allowScreenCaptureAsync('private').catch(() => {});
@@ -78,7 +80,7 @@ export default function App() {
   }, [settings.autoLockSeconds, mode]);
   function lock() {
     session.viewing = false;
-    setMode((m) => (m === 'chat' || m === 'decoy' || m === 'settings' || m === 'notes' ? 'disguise' : m));
+    setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import'].includes(m) ? 'disguise' : m));
   }
 
   // quick reconnect when the network changes (Wi-Fi to mobile data etc.)
@@ -153,7 +155,9 @@ export default function App() {
               {mode === 'disguise' && (kind === 'calculator'
                 ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} />
                 : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} />)}
-              {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} />}
+              {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} onStarred={() => setMode('starred')} onImport={() => setMode('import')} />}
+              {mode === 'starred' && <StarredScreen nickname={settings.nickname} onBack={() => setMode('chat')} />}
+              {mode === 'import' && <ImportWhatsApp onBack={() => setMode('chat')} />}
               {mode === 'notes' && <SharedNotesScreen onBack={() => setMode('chat')} />}
               {mode === 'decoy' && <DecoyChat nickname={settings.nickname} />}
               {mode === 'settings' && (

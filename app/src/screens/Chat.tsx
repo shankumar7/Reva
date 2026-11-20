@@ -46,7 +46,9 @@ function buildItems(messages: Msg[]): Item[] {
   return out;
 }
 
-export function Chat({ nickname, ttlSeconds, onSettings, onNotes }: { nickname: string; ttlSeconds: number; onSettings: () => void; onNotes: () => void }) {
+export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onImport }: {
+  nickname: string; ttlSeconds: number; onSettings: () => void; onNotes: () => void; onStarred: () => void; onImport: () => void;
+}) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const chat = useChat();
@@ -62,6 +64,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes }: { nickname: 
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState('');
   const [viewer, setViewer] = useState<Msg | null>(null);
+  const [more, setMore] = useState(false);
   const [, tickNow] = useState(0);
 
   useEffect(() => {
@@ -140,10 +143,8 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes }: { nickname: 
             </View>
           )}
         </View>
-        <IconBtn icon="search" label="Search" onPress={() => { setSearching((s) => !s); setQ(''); }} />
-        <IconBtn icon="note" label="Shared notes" onPress={onNotes} />
         <IconBtn icon="heart" label="Thinking of you" onPress={() => { session.thinkingOfYou(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }} />
-        <IconBtn icon="settings" label="Settings" onPress={onSettings} />
+        <IconBtn icon="more" label="More" onPress={() => setMore(true)} />
       </View>
 
       {searching && (
@@ -221,6 +222,13 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes }: { nickname: 
         </ClayPress>
       </View>
 
+      <MoreSheet open={more} onClose={() => setMore(false)} items={[
+        { icon: 'search', label: 'Search messages', run: () => { setSearching(true); setQ(''); } },
+        { icon: 'star', label: 'Starred messages', run: onStarred },
+        { icon: 'note', label: 'Shared notes', run: onNotes },
+        { icon: 'upload', label: 'Import a WhatsApp chat', run: onImport },
+        { icon: 'settings', label: 'Settings', run: onSettings },
+      ]} />
       <AttachSheet open={attach} once={once} setOnce={setOnce} onClose={() => setAttach(false)} onPick={(s) => void pick(s)} />
       <ActionMenu m={menu} onClose={() => setMenu(null)}
         onReply={(m) => { setReplyTo(m); setEditing(null); }}
@@ -228,6 +236,26 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes }: { nickname: 
       <ImageViewer id={viewer?.id ?? null} once={!!viewer?.once} mine={!!viewer?.mine} onClose={() => setViewer(null)} />
       <Hearts at={chat.hiAt} />
     </KeyboardAvoidingView>
+  );
+}
+
+function MoreSheet({ open, onClose, items }: { open: boolean; onClose: () => void; items: { icon: React.ComponentProps<typeof Icon>['name']; label: string; run: () => void }[] }) {
+  const t = useTheme();
+  const ins = useSafeAreaInsets();
+  if (!open) return null;
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+        <Animated.View entering={FadeInDown.duration(200)} style={{ margin: 12, marginBottom: ins.bottom + 12, gap: 10 }}>
+          {items.map((it) => (
+            <ClayPress key={it.label} onPress={() => { onClose(); it.run(); }} radius={20} style={{ paddingVertical: 16, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 14 }} label={it.label}>
+              <Icon name={it.icon} size={22} color={t.accent} />
+              <Text style={{ color: t.text, fontFamily: fonts.bold, fontSize: 16 }}>{it.label}</Text>
+            </ClayPress>
+          ))}
+        </Animated.View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -308,6 +336,7 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
     return (
       <Pressable onPress={onOpen}>
         <Image source={{ uri: dataUri(m.thumb) }} style={{ width: iw, height: ih, borderRadius: 16 }} resizeMode="cover" />
+        {m.text ? <Text style={{ color: fg, fontFamily: fonts.body, fontSize: 15, padding: 8, maxWidth: iw }}>{m.text}</Text> : null}
       </Pressable>
     );
   };
@@ -331,6 +360,7 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
             {(last || m.deleted || isImg) && (
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 3, paddingRight: isImg && !m.once ? 6 : 0 }}>
                 {m.edited && !m.deleted && <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>edited</Text>}
+                {m.starred && <Icon name="star" size={10} color={fg} />}
                 {m.exp > 0 && <Icon name="timer" size={10} color={fg} />}
                 <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>
                 {mine && !m.deleted && (
@@ -413,6 +443,7 @@ function ActionMenu({ m, onClose, onReply, onEdit }: { m: Msg | null; onClose: (
           </Clay>
           {row('Reply', 'reply', () => onReply(m))}
           {row(m.pinned ? 'Unpin' : 'Pin', 'pin', () => void session.pinMessage(m.id, !m.pinned))}
+          {row(m.starred ? 'Remove star' : 'Star', 'star', () => void session.starMessage(m.id, !m.starred))}
           {m.mine && m.kind === 'text' && row('Edit', 'edit', () => onEdit(m))}
           {m.kind === 'img' && !m.once && m.imgKey ? row('Save to gallery', 'download', () => void session.saveImage(m.id)) : null}
           {m.mine && row('Delete for both', 'trash', () => void session.deleteMine(m.id), true)}
