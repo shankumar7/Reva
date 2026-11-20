@@ -1,6 +1,6 @@
 // Claymorphism building blocks: soft, puffy surfaces with a light edge on one side and a soft shadow on the other.
 import React from 'react';
-import { Pressable, StyleProp, Text, TextStyle, View, ViewStyle, AccessibilityInfo } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle, AccessibilityInfo } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { fonts, useTheme } from '../theme';
@@ -34,11 +34,14 @@ export function ClayPress({
   const t = useTheme();
   const s = useSharedValue(1);
   const a = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
+  // Size and position belong to the outer touch area; looks belong to the inner puffy surface.
+  const { outer, inner } = splitLayout(style);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled}
+      style={outer}
       onPressIn={() => (s.value = withTiming(0.96, { duration: 90 }))}
       onPressOut={() => (s.value = withSpring(1, { damping: 14, stiffness: 260 }))}
       onPress={() => {
@@ -49,9 +52,9 @@ export function ClayPress({
     >
       <Animated.View
         style={[
-          { backgroundColor: color ?? t.surface, borderRadius: radius, opacity: disabled ? 0.5 : 1 },
+          { backgroundColor: color ?? t.surface, borderRadius: radius, opacity: disabled ? 0.5 : 1, flexGrow: 1 },
           clayShadow(t, depth),
-          style,
+          inner,
           a,
         ]}
       >
@@ -59,6 +62,19 @@ export function ClayPress({
       </Animated.View>
     </Pressable>
   );
+}
+
+const LAYOUT_KEYS = new Set([
+  'width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'flex', 'flexGrow', 'flexShrink', 'flexBasis',
+  'margin', 'marginHorizontal', 'marginVertical', 'marginTop', 'marginBottom', 'marginLeft', 'marginRight',
+  'alignSelf', 'position', 'top', 'left', 'right', 'bottom', 'zIndex',
+]);
+function splitLayout(style?: StyleProp<ViewStyle>) {
+  const flat = (StyleSheet.flatten(style) ?? {}) as Record<string, unknown>;
+  const outer: Record<string, unknown> = {};
+  const inner: Record<string, unknown> = {};
+  for (const k of Object.keys(flat)) (LAYOUT_KEYS.has(k) ? outer : inner)[k] = flat[k];
+  return { outer: outer as ViewStyle, inner: inner as ViewStyle };
 }
 
 export function Button({
