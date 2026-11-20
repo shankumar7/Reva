@@ -28,6 +28,7 @@ export type Envelope =
   | { k: 'typing'; on: boolean }
   | { k: 'hi' } // "thinking of you"
   | { k: 'img'; id: string; ts: number; data: string; thumb: string; w: number; h: number; once?: boolean; ttl?: number; replyTo?: string }
+  | { k: 'aud'; id: string; ts: number; data: string; dur: number; ttl?: number; replyTo?: string } // voice note (data = base64 m4a)
   | { k: 'viewed'; id: string } // a view-once picture was opened
   | { k: 'pin'; id: string; on: boolean }
   | { k: 'snote'; id: string; title: string; body: string; ts: number; del?: boolean }; // shared notes

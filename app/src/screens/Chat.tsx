@@ -8,6 +8,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { RecordingPresets, createAudioPlayer, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, type AudioPlayer } from 'expo-audio';
 import { Body, Button, Clay, ClayPress, H1, Label, Switch } from '../ui/Clay';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
@@ -65,6 +67,9 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
   const [err, setErr] = useState('');
   const [viewer, setViewer] = useState<Msg | null>(null);
   const [more, setMore] = useState(false);
+  const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
+  const [recStart, setRecStart] = useState<number | null>(null);
+  const [recSecs, setRecSecs] = useState(0);
   const [, tickNow] = useState(0);
 
   useEffect(() => {
@@ -92,6 +97,47 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
     [chat.messages, searchMode, found, tickNow],
   );
   const pinned = useMemo(() => [...chat.messages].reverse().find((m) => m.pinned && !m.deleted), [chat.messages]);
+
+  useEffect(() => {
+    if (recStart === null) return;
+    const iv = setInterval(() => {
+      const secs = Math.floor((Date.now() - recStart) / 1000);
+      setRecSecs(secs);
+      if (secs >= 120) void stopRec(true); // voice notes are at most 2 minutes
+    }, 250);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recStart]);
+
+  async function startRec() {
+    setErr('');
+    try {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) return setErr('The microphone is not allowed. You can allow it in Android settings.');
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setRecSecs(0); setRecStart(Date.now());
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch (e) {
+      setErr('Could not start recording: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  async function stopRec(sendIt: boolean) {
+    const started = recStart;
+    setRecStart(null);
+    try {
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
+      const uri = recorder.uri;
+      const secs = started ? (Date.now() - started) / 1000 : 0;
+      if (uri && sendIt && secs >= 1) await session.sendVoice(uri, secs, replyTo?.id), setReplyTo(null);
+      if (uri) await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+    } catch (e) {
+      setErr('Voice note failed: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }
 
   function send() {
     if (!text.trim()) return;
@@ -160,7 +206,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
         <Animated.View entering={FadeInDown.duration(180)} exiting={FadeOut} style={{ marginHorizontal: 18, marginBottom: 8 }}>
           <Clay radius={16} style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Icon name="pin" size={16} color={t.accent} />
-            <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontFamily: fonts.medium, fontSize: 13 }}>{pinned.kind === 'img' ? 'Photo' : pinned.text}</Text>
+            <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontFamily: fonts.medium, fontSize: 13 }}>{pinned.kind === 'img' ? 'Photo' : pinned.kind === 'aud' ? 'Voice note' : pinned.text}</Text>
             <Pressable hitSlop={10} onPress={() => void session.pinMessage(pinned.id, false)}><Icon name="x" size={16} color={t.textDim} /></Pressable>
           </Clay>
         </Animated.View>
@@ -208,19 +254,41 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
         </Animated.View>
       )}
 
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingBottom: ins.bottom + 10, paddingTop: 4 }}>
-        <ClayPress onPress={() => setAttach(true)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Add a picture" disabled={sending}>
-          {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={24} />}
-        </ClayPress>
-        <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18 }}>
-          <TextInput value={text} multiline placeholder="Message" placeholderTextColor={t.textDim}
-            onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
-            style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, paddingVertical: 13, maxHeight: 130 }} />
-        </Clay>
-        <ClayPress onPress={send} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Send">
-          <Icon name={editing ? 'check' : 'send'} size={24} color={t.onAccent} />
-        </ClayPress>
-      </View>
+      {recStart !== null ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: ins.bottom + 10, paddingTop: 4 }}>
+          <ClayPress onPress={() => void stopRec(false)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Cancel recording">
+            <Icon name="trash" size={22} color={t.danger} />
+          </ClayPress>
+          <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <RecDot />
+            <Text style={{ color: t.text, fontFamily: fonts.bold, fontSize: 16 }}>{Math.floor(recSecs / 60)}:{String(recSecs % 60).padStart(2, '0')}</Text>
+            <Text style={{ color: t.textDim, fontFamily: fonts.body, fontSize: 13 }}>Recording…</Text>
+          </Clay>
+          <ClayPress onPress={() => void stopRec(true)} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Send voice note">
+            <Icon name="send" size={24} color={t.onAccent} />
+          </ClayPress>
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingBottom: ins.bottom + 10, paddingTop: 4 }}>
+          <ClayPress onPress={() => setAttach(true)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Add a picture" disabled={sending}>
+            {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={24} />}
+          </ClayPress>
+          <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18 }}>
+            <TextInput value={text} multiline placeholder="Message" placeholderTextColor={t.textDim}
+              onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
+              style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, paddingVertical: 13, maxHeight: 130 }} />
+          </Clay>
+          {text.trim() ? (
+            <ClayPress onPress={send} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Send">
+              <Icon name={editing ? 'check' : 'send'} size={24} color={t.onAccent} />
+            </ClayPress>
+          ) : (
+            <ClayPress onPress={() => void startRec()} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Record a voice note">
+              <Icon name="mic" size={24} color={t.onAccent} />
+            </ClayPress>
+          )}
+        </View>
+      )}
 
       <MoreSheet open={more} onClose={() => setMore(false)} items={[
         { icon: 'search', label: 'Search messages', run: () => { setSearching(true); setQ(''); } },
@@ -354,7 +422,7 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
             )}
             {m.deleted ? (
               <Text style={{ color: fg, opacity: 0.6, fontFamily: fonts.body, fontStyle: 'italic', fontSize: 15 }}>Message deleted</Text>
-            ) : isImg ? imageBody() : (
+            ) : m.kind === 'aud' ? <VoiceBody m={m} color={fg} /> : isImg ? imageBody() : (
               <Text style={{ color: fg, fontFamily: fonts.body, fontSize: 16, lineHeight: 22 }}>{m.text}</Text>
             )}
             {(last || m.deleted || isImg) && (
@@ -380,6 +448,75 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
       </RNAnimated.View>
       {(m.rMine || m.rTheirs) && <View style={{ height: 10 }} />}
     </Animated.View>
+  );
+}
+
+function RecDot() {
+  const o = useSharedValue(1);
+  useEffect(() => { o.value = withRepeat(withSequence(withTiming(0.2, { duration: 500 }), withTiming(1, { duration: 500 })), -1); }, [o]);
+  const st = useAnimatedStyle(() => ({ opacity: o.value }));
+  return <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E5484D' }, st]} />;
+}
+
+let currentPlayer: { player: AudioPlayer; stop: () => void } | null = null;
+
+/** Play button, bar and length for a voice note. Decrypts to a temporary file only while playing. */
+function VoiceBody({ m, color }: { m: Msg; color: string }) {
+  const t = useTheme();
+  const [playing, setPlaying] = useState(false);
+  const [pos, setPos] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const stopRef = useRef<() => void>(() => {});
+  useEffect(() => () => stopRef.current(), []);
+
+  async function toggle() {
+    if (playing) { stopRef.current(); return; }
+    currentPlayer?.stop();
+    setLoading(true);
+    let tmp = '';
+    try {
+      const b64 = await session.imageData(m.id);
+      if (!b64) return;
+      tmp = (FileSystem.cacheDirectory ?? '') + 'v-' + m.id + '.m4a';
+      await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      const player = createAudioPlayer({ uri: tmp });
+      let iv: ReturnType<typeof setInterval> | null = null;
+      const stop = () => {
+        if (iv) clearInterval(iv);
+        try { player.pause(); player.remove(); } catch { /* already released */ }
+        FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
+        setPlaying(false); setPos(0);
+        if (currentPlayer?.player === player) currentPlayer = null;
+      };
+      stopRef.current = stop;
+      currentPlayer = { player, stop };
+      player.play();
+      setPlaying(true);
+      iv = setInterval(() => {
+        setPos(player.currentTime ?? 0);
+        if (!player.playing && (player.currentTime ?? 0) > 0.2 && (player.currentTime ?? 0) >= (player.duration || m.w) - 0.3) stop();
+      }, 200);
+    } catch {
+      if (tmp) FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const total = Math.max(1, m.w);
+  const pct = Math.min(1, pos / total);
+  const label = playing ? Math.floor(pos) : total;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 190, paddingVertical: 2 }}>
+      <Pressable onPress={() => void toggle()} hitSlop={8} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: color, opacity: 0.9, alignItems: 'center', justifyContent: 'center' }}>
+        {loading ? <ActivityIndicator size="small" color={t.bg} /> : <Icon name={playing ? 'stop' : 'play'} size={16} color={t.bg} />}
+      </Pressable>
+      <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: color + '33', overflow: 'hidden' }}>
+        <View style={{ width: `${pct * 100}%`, height: 6, backgroundColor: color }} />
+      </View>
+      <Text style={{ color, fontFamily: fonts.medium, fontSize: 12, width: 34, textAlign: 'right' }}>{Math.floor(label / 60)}:{String(label % 60).padStart(2, '0')}</Text>
+    </View>
   );
 }
 

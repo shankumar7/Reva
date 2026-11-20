@@ -167,6 +167,16 @@ class Session {
         if (this.config.saveToGallery && !env.once) void Images.saveToGallery(env.id, key).catch(() => {});
         break;
       }
+      case 'aud': {
+        const key = await Images.store(env.id, env.data);
+        await Messages.insert({
+          id: env.id, ts: env.ts, mine: false, kind: 'aud', replyTo: env.replyTo ?? null, state: 3, seen: this.viewing,
+          exp: this.expFor(env.ts, env.ttl), w: env.dur, imgKey: key,
+        });
+        this.client?.send({ k: 'rcpt', ids: [env.id], state: this.viewing ? 'read' : 'delivered' }, 'r' + this.newId());
+        this.set({ peerTyping: false });
+        break;
+      }
       case 'viewed':
         await Messages.markViewed(env.id);
         break;
@@ -279,7 +289,21 @@ class Session {
     await this.reload();
   }
 
-  /** The full picture as base64, or null if it is gone. */
+  /** Send a recorded voice note (an m4a file on this phone). */
+  async sendVoice(fileUri: string, seconds: number, replyTo?: string | null) {
+    if (!this.client) return;
+    const data = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
+    const id = this.newId();
+    const ts = Date.now();
+    const ttl = this.config.ttlSeconds;
+    const key = await Images.store(id, data);
+    await Messages.insert({ id, ts, mine: true, kind: 'aud', replyTo: replyTo ?? null, state: 0, seen: true, w: Math.round(seconds), imgKey: key, exp: this.expFor(ts, ttl) });
+    this.client.send({ k: 'aud', id, ts, data, dur: Math.round(seconds), ttl: ttl || undefined, replyTo: replyTo ?? undefined }, id);
+    this.set({ pending: this.client.pending });
+    await this.reload();
+  }
+
+  /** The full picture (or voice note) as base64, or null if it is gone. */
   async imageData(id: string): Promise<string | null> {
     const m = await Messages.get(id);
     if (!m || m.deleted || !m.imgKey) return null;

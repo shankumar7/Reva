@@ -1,13 +1,14 @@
 // The chat database. It is encrypted on the phone (SQLCipher) with a key kept in the secure store.
 import * as SQLite from 'expo-sqlite';
 import { Vault } from './storage';
+import { ADDED_COLUMNS, BASE_SQL } from './schema';
 
 export type MsgState = 0 | 1 | 2 | 3; // queued, sent, delivered, read
 export interface Msg {
   id: string;
   ts: number;
   mine: boolean;
-  kind: 'text' | 'img';
+  kind: 'text' | 'img' | 'aud'; // for voice notes, `w` holds the length in seconds
   text: string;
   replyTo: string | null;
   state: MsgState;
@@ -35,7 +36,7 @@ interface Row {
   pinned: number; exp: number; thumb: string; w: number; h: number; img_key: string; starred: number;
 }
 const fromRow = (r: Row): Msg => ({
-  id: r.id, ts: r.ts, mine: !!r.mine, kind: r.kind === 'img' ? 'img' : 'text', text: r.text, replyTo: r.reply_to,
+  id: r.id, ts: r.ts, mine: !!r.mine, kind: r.kind === 'img' ? 'img' : r.kind === 'aud' ? 'aud' : 'text', text: r.text, replyTo: r.reply_to,
   state: r.state as MsgState, edited: !!r.edited, deleted: !!r.deleted, rMine: r.r_mine, rTheirs: r.r_theirs,
   once: !!r.once, viewed: !!r.viewed, seen: !!r.seen, pinned: !!r.pinned, exp: r.exp ?? 0,
   thumb: r.thumb ?? '', w: r.w ?? 0, h: r.h ?? 0, imgKey: r.img_key ?? '', starred: !!r.starred,
@@ -49,32 +50,12 @@ export async function openDb(): Promise<SQLite.SQLiteDatabase> {
   const key = await Vault.dbKey();
   const d = await SQLite.openDatabaseAsync(NAME);
   await d.execAsync(`PRAGMA key = "x'${key}'";`);
-  await d.execAsync(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY, ts INTEGER NOT NULL, mine INTEGER NOT NULL, text TEXT NOT NULL,
-      reply_to TEXT, state INTEGER NOT NULL DEFAULT 0, edited INTEGER NOT NULL DEFAULT 0,
-      deleted INTEGER NOT NULL DEFAULT 0, r_mine TEXT, r_theirs TEXT, once INTEGER NOT NULL DEFAULT 0,
-      seen INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE INDEX IF NOT EXISTS m_ts ON messages(ts);
-    CREATE TABLE IF NOT EXISTS snotes (
-      id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, ts INTEGER NOT NULL
-    );
-  `);
+  await d.execAsync(BASE_SQL);
   // upgrade older databases in place
   const cols = (await d.getAllAsync<{ name: string }>('PRAGMA table_info(messages)')).map((c) => c.name);
-  const add = async (name: string, ddl: string) => {
+  for (const [name, ddl] of ADDED_COLUMNS) {
     if (!cols.includes(name)) await d.execAsync(`ALTER TABLE messages ADD COLUMN ${name} ${ddl}`);
-  };
-  await add('kind', "TEXT NOT NULL DEFAULT 'text'");
-  await add('viewed', 'INTEGER NOT NULL DEFAULT 0');
-  await add('pinned', 'INTEGER NOT NULL DEFAULT 0');
-  await add('exp', 'INTEGER NOT NULL DEFAULT 0');
-  await add('thumb', "TEXT NOT NULL DEFAULT ''");
-  await add('w', 'INTEGER NOT NULL DEFAULT 0');
-  await add('h', 'INTEGER NOT NULL DEFAULT 0');
-  await add('img_key', "TEXT NOT NULL DEFAULT ''");
-  await add('starred', 'INTEGER NOT NULL DEFAULT 0');
+  }
   db = d;
   return d;
 }
@@ -160,7 +141,7 @@ export const Messages = {
     const d = await openDb();
     const rows = await d.getAllAsync<{ id: string; kind: string }>('SELECT id, kind FROM messages WHERE exp > 0 AND exp <= ?', now);
     if (rows.length) await d.runAsync('DELETE FROM messages WHERE exp > 0 AND exp <= ?', now);
-    return rows.filter((r) => r.kind === 'img').map((r) => r.id);
+    return rows.filter((r) => r.kind === 'img' || r.kind === 'aud').map((r) => r.id);
   },
 };
 
