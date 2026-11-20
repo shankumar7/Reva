@@ -37,6 +37,7 @@
             "minSdkVersion": 26,
             "usesCleartextTraffic": false,
             "useLegacyPackaging": true,
+            "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**",
             "enableBundleCompression": true,
             "enablePngCrunchInReleaseBuilds": true
           }
