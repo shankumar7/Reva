@@ -14,7 +14,7 @@ import { Body, Button, Clay, ClayPress, H1, Label, Switch } from '../ui/Clay';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
-import { contrast } from '../colors';
+import { contrast, luminance } from '../colors';
 import { whileSystemUi } from '../core/lockGuard';
 import { useBackHandler } from '../core/backStack';
 import { session } from '../core/session';
@@ -292,7 +292,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
           </ClayPress>
           <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18, minHeight: 52 }}>
             {/* one line is exactly as tall as the round buttons; longer text grows the box, then scrolls inside it */}
-            <TextInput value={text} multiline scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
+            <TextInput value={text} multiline numberOfLines={1} scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
               onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
               style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 15, paddingBottom: 15, minHeight: 52, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
           </Clay>
@@ -402,6 +402,8 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
   const bg = mine ? t.bubbleMine : t.bubbleTheirs;
   const fg = mine ? t.onMine : t.onTheirs;
   const time = new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // the "read" ticks must stand out on any bubble colour
+  const readTick = contrast(t.accent, bg) >= 3 ? t.accent : luminance(bg) < 0.35 ? '#8DF5C8' : '#0B6B4C';
   const isImg = m.kind === 'img';
   const ratio = m.w && m.h ? m.w / m.h : 1;
   const iw = ratio >= 1 ? 240 : Math.max(150, 240 * ratio), ih = Math.min(320, iw / ratio);
@@ -450,7 +452,7 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
                 {m.exp > 0 && <Icon name="timer" size={10} color={fg} />}
                 <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>
                 {mine && !m.deleted && (
-                  <Text style={{ color: m.state === 3 ? (contrast(t.accent, bg) >= 2.2 ? t.accent : t.good) : fg, opacity: m.state === 3 ? 1 : 0.55, fontSize: 11, fontFamily: fonts.bold }}>{tick(m)}</Text>
+                  <Text style={{ color: m.state === 3 ? readTick : fg, opacity: m.state === 3 ? 1 : 0.55, fontSize: 11, fontFamily: fonts.bold }}>{tick(m)}</Text>
                 )}
               </View>
             )}

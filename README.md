@@ -6,21 +6,52 @@ Oracle's Always Free server, DuckDNS, Let's Encrypt, Firebase's free push, and y
 
 ## Screenshots
 
-![Setup, chat in Nocturne, chat in Monstera, theme gallery](docs/screenshots/overview.png)
+![Setup, chat in Aurora, scientific calculator, theme gallery](docs/screenshots/overview.png)
 
 These are the real screens rendered in a browser at phone size with made-up sample messages. They are not photos
 from a phone, so fonts and shadows can differ slightly on a device.
 
-| Chat, Midnight | Chat, Paper | Settings |
-|---|---|---|
-| <img src="docs/screenshots/chat-midnight.png" width="240"> | <img src="docs/screenshots/chat-paper.png" width="240"> | <img src="docs/screenshots/settings.png" width="240"> |
+### First run
+| Start | Choose your codes |
+|---|---|
+| <img src="docs/screenshots/setup-role.png" width="260"> | <img src="docs/screenshots/setup-codes.png" width="260"> |
 
-| Theme gallery | Calculator disguise | Shared notes | Starred |
+### Chat
+| Nocturne | Aurora (typing, disappearing on) | Glacier | Lemonade |
 |---|---|---|---|
-| <img src="docs/screenshots/theme-gallery.png" width="180"> | <img src="docs/screenshots/calculator.png" width="180"> | <img src="docs/screenshots/shared-notes.png" width="180"> | <img src="docs/screenshots/starred.png" width="180"> |
+| <img src="docs/screenshots/chat-nocturne.png" width="200"> | <img src="docs/screenshots/chat-aurora.png" width="200"> | <img src="docs/screenshots/chat-glacier.png" width="200"> | <img src="docs/screenshots/chat-lemonade.png" width="200"> |
+
+### 33 themes
+The same chat in twelve of them:
+
+![The same chat in twelve themes](docs/screenshots/theme-wall.png)
+
+| Theme gallery | The whole gallery |
+|---|---|
+| <img src="docs/screenshots/themes-top.png" width="260"> | <img src="docs/screenshots/theme-gallery-full.png" width="260"> |
+
+Dark: Nocturne, Midnight, Ember, Pine Night, Plum, Abyss, Graphite, Neon, Aurora, Cherry Night, Cobalt, Moss, Dusk, Galaxy.
+Light: Monstera, Swell, Rosewater, Matcha, Lilac, Sand, Candy, Paper, Sky, Citrus, Peach, Mint, Butter, Periwinkle,
+Coral Reef, Blossom, Glacier, Lemonade, Dawn. Plus **Auto**, which follows your phone, and an accent colour you can
+lay over any of them.
+
+### The calculator disguise
+| Everyday | Scientific (sin, cos, tan, ln, log, powers, brackets, memory, history) |
+|---|---|
+| <img src="docs/screenshots/calc.png" width="260"> | <img src="docs/screenshots/calc-sci.png" width="260"> |
+
+### Settings and tools
+| Settings | Backup and restore | Import a WhatsApp chat |
+|---|---|---|
+| <img src="docs/screenshots/settings.png" width="220"> | <img src="docs/screenshots/backup.png" width="220"> | <img src="docs/screenshots/import.png" width="220"> |
+
+| Shared notes | Starred messages | The Notes disguise |
+|---|---|---|
+| <img src="docs/screenshots/shared-notes.png" width="220"> | <img src="docs/screenshots/starred.png" width="220"> | <img src="docs/screenshots/notes.png" width="220"> |
 
 To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform web`, serve the output folder, and open
-`?screen=chat&theme=nocturne` (other screens: `settings`, `themes`, `calc`, `notes`, `setup`, `starred`, `sharednotes`).
+`?screen=chat&theme=aurora` (other screens: `settings`, `themes`, `calc` with `&sci=1&expr=...`, `notes`, `setup`,
+`setupcodes`, `starred`, `sharednotes`, `import`, `backup`).
 
 ## Features
 
@@ -45,6 +76,8 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - **Export** your chat back to a text file.
 
 **Disguise**
+- The calculator is a real one: brackets, powers, roots, factorial, sin/cos/tan in degrees or radians, ln and log, π and e,
+  memory keys and a history list.
 - Two fully working disguises (Calculator, Notes) and six more icons and names: Clock, Weather, Files, Compass,
   Calendar, Music. Switch any time in Settings. Add more in `app/config/disguises.js`.
 - Your own home-screen shortcut with any name and picture.
@@ -53,8 +86,8 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - Locks itself when you leave. Screenshots, screen recording and the recent-apps picture are blocked.
 
 **Look**
-- Soft "clay" style, smooth springs and fades, big headline type.
-- **Theme gallery**: 18 themes (dark and light) with live previews, an Auto mode, and an accent colour you can
+- Soft "clay" style, smooth fades with no bounce, big headline type.
+- **Theme gallery**: 33 themes (dark and light) with live previews, an Auto mode, and an accent colour you can
   lay over any of them. Every theme is built from a few base colours and checked by an automatic contrast test.
 - The design is checked in a real browser: `EXPO_PUBLIC_PREVIEW=1 npx expo export --platform web` builds a preview
   of the real screens with sample data (not part of the phone app).

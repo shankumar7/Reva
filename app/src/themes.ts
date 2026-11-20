@@ -88,6 +88,23 @@ const SEEDS: Seed[] = [
   { id: 'paper', name: 'Paper', dark: false, mood: 'Clean white and ink', bg: '#F4F4F2', surface: '#FFFFFF', text: '#17171A', accent: '#17171A', accent2: '#5A5A66', mine: '#17171A' },
   { id: 'sky', name: 'Sky', dark: false, mood: 'Light blue with navy', bg: '#E1EEFA', surface: '#F3F9FE', text: '#14284B', accent: '#2A6FCF', accent2: '#14407F', mine: '#2A6FCF' },
   { id: 'citrus', name: 'Citrus', dark: false, mood: 'Cream, orange and teal', bg: '#FFF3DA', surface: '#FFFAEC', text: '#33321A', accent: '#F28A1B', accent2: '#16897F', mine: '#12766E' },
+  // more dark
+  { id: 'aurora', name: 'Aurora', dark: true, mood: 'Northern lights: teal, mint and violet', bg: '#0E1B24', surface: '#172A36', text: '#E6F4F2', accent: '#7CF5C8', accent2: '#8F7CFF', mine: '#3B4FA8' },
+  { id: 'cherry', name: 'Cherry Night', dark: true, mood: 'Deep wine with cherry and amber', bg: '#1C1016', surface: '#2B1822', text: '#FBE9EE', accent: '#FF5C7A', accent2: '#FFB86B', mine: '#A32A4B' },
+  { id: 'cobalt', name: 'Cobalt', dark: true, mood: 'Ink blue with bright cobalt and gold', bg: '#0B1020', surface: '#141C36', text: '#E8EDFF', accent: '#5B8CFF', accent2: '#FFC857', mine: '#2A4BB5' },
+  { id: 'moss', name: 'Moss', dark: true, mood: 'Mossy dark with soft lime', bg: '#14180F', surface: '#1F2616', text: '#EEF2DF', accent: '#D7E36B', accent2: '#8FBF6A', mine: '#55702D' },
+  { id: 'dusk', name: 'Dusk', dark: true, mood: 'Plum evening with orange and rose', bg: '#201522', surface: '#2E1D31', text: '#F9EBF2', accent: '#FF9E5E', accent2: '#FF5E8E', mine: '#B8436B' },
+  { id: 'galaxy', name: 'Galaxy', dark: true, mood: 'Space indigo with stardust gold', bg: '#12102B', surface: '#1D1A42', text: '#EDEBFF', accent: '#FFD166', accent2: '#B79CFF', mine: '#4B3FA8' },
+  // more light
+  { id: 'peach', name: 'Peach', dark: false, mood: 'Soft peach with warm orange', bg: '#FFE9DC', surface: '#FFF5EE', text: '#4A2A1C', accent: '#D9623A', accent2: '#A03A22', mine: '#D9623A' },
+  { id: 'mint', name: 'Mint', dark: false, mood: 'Cool mint and deep green', bg: '#DFF5EC', surface: '#F2FCF8', text: '#17382D', accent: '#14946E', accent2: '#0F6E56', mine: '#14946E' },
+  { id: 'butter', name: 'Butter', dark: false, mood: 'Buttery yellow with olive', bg: '#FFF6C9', surface: '#FFFBE6', text: '#3A3512', accent: '#C99700', accent2: '#6B5E00', mine: '#6B5E00' },
+  { id: 'periwinkle', name: 'Periwinkle', dark: false, mood: 'Blue-violet and crisp white', bg: '#E4E8FF', surface: '#F5F6FF', text: '#1E2250', accent: '#4F5BE0', accent2: '#3340B8', mine: '#4F5BE0' },
+  { id: 'reef', name: 'Coral Reef', dark: false, mood: 'Coral pink with sea teal', bg: '#FFE3E0', surface: '#FFF3F1', text: '#4A1E1E', accent: '#E5513F', accent2: '#1B8F8A', mine: '#1B8F8A' },
+  { id: 'blossom', name: 'Blossom', dark: false, mood: 'Orchid pink and plum', bg: '#F7E6F5', surface: '#FDF3FC', text: '#3E1F3D', accent: '#B1409F', accent2: '#7A2C75', mine: '#B1409F' },
+  { id: 'glacier', name: 'Glacier', dark: false, mood: 'Icy blue with deep teal', bg: '#E6F4F7', surface: '#F4FBFC', text: '#12363D', accent: '#12809A', accent2: '#0B5A6B', mine: '#12809A' },
+  { id: 'lemonade', name: 'Lemonade', dark: false, mood: 'Fresh lemon, pink and green', bg: '#FFF9D6', surface: '#FFFDEE', text: '#33321A', accent: '#E0457B', accent2: '#2F9E6B', mine: '#E0457B' },
+  { id: 'dawn', name: 'Dawn', dark: false, mood: 'First light: rose, gold and soft blue', bg: '#FDEBE3', surface: '#FFF7F2', text: '#3A2438', accent: '#E8734A', accent2: '#4C6FB8', mine: '#4C6FB8' },
 ];
 
 export const THEMES: Theme[] = [...HAND, ...SEEDS.map(make)];

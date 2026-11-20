@@ -26,13 +26,13 @@ const isOp = (c: string) => OPS.includes(c);
 
 interface Entry { expr: string; result: string }
 
-export function Calculator({ tryUnlock, onSecret }: { tryUnlock: (code: string) => Promise<boolean>; onSecret?: () => void }) {
+export function Calculator({ tryUnlock, onSecret, initialSci, initialExpr }: { tryUnlock: (code: string) => Promise<boolean>; onSecret?: () => void; initialSci?: boolean; initialExpr?: string }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const [expr, setExpr] = useState('');
+  const [expr, setExpr] = useState(initialExpr ?? '');
   const [shown, setShown] = useState<string | null>(null); // the sum, after pressing =
-  const [sci, setSci] = useState(false);
+  const [sci, setSci] = useState(!!initialSci);
   const [deg, setDeg] = useState(true);
   const [mem, setMem] = useState(0);
   const [history, setHistory] = useState<Entry[]>([]);

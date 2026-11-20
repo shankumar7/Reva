@@ -4,7 +4,7 @@ import { THEMES, ACCENTS, resolveTheme } from '../src/themes';
 import { contrast } from '../src/colors';
 
 test('every theme is readable', () => {
-  assert.ok(THEMES.length >= 18);
+  assert.ok(THEMES.length >= 30);
   const bad: string[] = [];
   for (const t of THEMES) {
     const checks: [string, number, number][] = [

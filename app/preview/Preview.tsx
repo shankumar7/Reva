@@ -22,6 +22,8 @@ import { Setup } from '../src/screens/Setup';
 import { StarredScreen } from '../src/screens/Starred';
 import { SharedNotesScreen } from '../src/screens/SharedNotes';
 import { SAMPLE_THUMB } from './sampleThumb';
+import { ImportWhatsApp } from '../src/screens/ImportWhatsApp';
+import { BackupScreen } from '../src/screens/Backup';
 
 const now = Date.now();
 const m = (o: Partial<Msg> & { id: string; mine: boolean; ago: number }): Msg => ({
@@ -54,10 +56,12 @@ function Inner() {
       {screen === 'chat' && <Chat nickname="Asha" ttlSeconds={q.get('ttl') ? 86400 : 0} onSettings={noop} onNotes={noop} onStarred={noop} onImport={noop} />}
       {screen === 'settings' && <SettingsScreen settings={{ ...defaultSettings, theme: q.get('theme') ?? 'auto' }} onChange={noop} onBack={noop} onLock={noop} onPanic={noop} />}
       {screen === 'themes' && <ThemeGallery theme={q.get('theme') ?? 'auto'} accent={q.get('accent') ?? ''} onTheme={noop} onAccent={noop} onBack={noop} />}
-      {screen === 'calc' && <Calculator tryUnlock={async () => false} />}
+      {screen === 'calc' && <Calculator tryUnlock={async () => false} initialSci={q.get('sci') === '1'} initialExpr={q.get('expr') ?? ''} />}
       {screen === 'notes' && <Notes tryUnlock={async () => false} titleUnlock={false} />}
       {screen === 'setup' && <Setup onDone={noop} />}
       {screen === 'setupcodes' && <Setup onDone={noop} initialStep="codes" />}
+      {screen === 'import' && <ImportWhatsApp onBack={noop} />}
+      {screen === 'backup' && <BackupScreen settings={defaultSettings} onSettings={noop} onBack={noop} nickname="Asha" />}
       {screen === 'starred' && <StarredScreen nickname="Asha" onBack={noop} />}
       {screen === 'sharednotes' && <SharedNotesScreen onBack={noop} />}
     </View>
