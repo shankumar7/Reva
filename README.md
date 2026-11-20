@@ -22,6 +22,8 @@ Oracle's Always Free server, DuckDNS, Let's Encrypt, Firebase's free push, and y
 **Bring your old chat**
 - **Import a WhatsApp chat** from "Export chat" (text, or zip with photos). Handles Android and iPhone layouts,
   12 and 24 hour clocks, day-first and month-first dates. Importing twice makes no duplicates.
+- The import is **synced to your partner's phone** (encrypted, in small batches). If both of you import the same
+  chat, it lines up and nothing doubles.
 - **Export** your chat back to a text file.
 
 **Disguise**
@@ -33,8 +35,14 @@ Oracle's Always Free server, DuckDNS, Let's Encrypt, Firebase's free push, and y
 - Locks itself when you leave. Screenshots, screen recording and the recent-apps picture are blocked.
 
 **Look**
-- Soft "clay" style with three colour themes (Nocturne, Monstera, Swell) plus Auto, smooth springs and
-  fades, dark mode, big headline type.
+- Soft "clay" style, smooth springs and fades, big headline type.
+- **Theme gallery**: 18 themes (dark and light) with live previews, an Auto mode, and an accent colour you can
+  lay over any of them. Every theme is built from a few base colours and checked by an automatic contrast test.
+- The design is checked in a real browser: `EXPO_PUBLIC_PREVIEW=1 npx expo export --platform web` builds a preview
+  of the real screens with sample data (not part of the phone app).
+
+**No cover mode**
+- Turn the disguise off in Settings and the app opens straight into the chat, with a plain "Chat" icon.
 
 **Safety of your data**
 - Updates keep your messages: the app only ever adds to its database (there is a test for this), and updates

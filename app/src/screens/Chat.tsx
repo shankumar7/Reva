@@ -14,6 +14,7 @@ import { Body, Button, Clay, ClayPress, H1, Label, Switch } from '../ui/Clay';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
+import { contrast } from '../colors';
 import { session } from '../core/session';
 import { dataUri } from '../core/images';
 import type { Msg } from '../core/db';
@@ -432,7 +433,7 @@ function Bubble({ m, first, last, quoted, onReply, onMenu, onOpen }: {
                 {m.exp > 0 && <Icon name="timer" size={10} color={fg} />}
                 <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>
                 {mine && !m.deleted && (
-                  <Text style={{ color: m.state === 3 ? t.accent : fg, opacity: m.state === 3 ? 1 : 0.55, fontSize: 11, fontFamily: fonts.bold }}>{tick(m)}</Text>
+                  <Text style={{ color: m.state === 3 ? (contrast(t.accent, bg) >= 2.2 ? t.accent : t.good) : fg, opacity: m.state === 3 ? 1 : 0.55, fontSize: 11, fontFamily: fonts.bold }}>{tick(m)}</Text>
                 )}
               </View>
             )}
