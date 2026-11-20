@@ -7,6 +7,7 @@ import sodium from 'libsodium-wrappers';
 import { makeCrypto } from '../../shared/crypto.js';
 import type { ClientMsg, ServerMsg } from '../../shared/protocol.js';
 import { Store } from './db.js';
+import { latestBackup, makeBackup } from './backup.js';
 
 export interface Options {
   dbPath: string;
@@ -14,6 +15,8 @@ export interface Options {
   port?: number;
   host?: string;
   updatesDir?: string;
+  backupDir?: string;
+  backupKey?: string; // 64 hex characters
   maxMsgBytes?: number;
 }
 
@@ -77,29 +80,30 @@ export async function createServer(opts: Options) {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       return res.end('ok');
     }
-    if (url.pathname === '/update/latest.json' || url.pathname === '/update/app.apk') {
+    const isUpdate = url.pathname === '/update/latest.json' || url.pathname === '/update/app.apk';
+    const isBackup = url.pathname === '/backup/latest.enc';
+    if (isUpdate || isBackup) {
       // Only a registered device may ask: it signs the current minute.
       const pk = String(req.headers['x-device'] ?? '');
       const sig = String(req.headers['x-sig'] ?? '');
       const minute = String(req.headers['x-minute'] ?? '');
       const ip = String(req.socket.remoteAddress);
       const fresh = Math.abs(Date.now() / 60000 - Number(minute)) <= 2;
-      if (ipBlocked(ip) || !fresh || !store.bySignPk(pk) || !c.verifyChallenge(pk, 'update|' + minute, sig)) {
+      const scope = isBackup ? 'backup|' : 'update|';
+      if (ipBlocked(ip) || !fresh || !store.bySignPk(pk) || !c.verifyChallenge(pk, scope + minute, sig)) {
         noteBad(ip);
         res.writeHead(401);
         return res.end();
       }
-      if (!updatesDir) {
-        res.writeHead(404);
-        return res.end();
-      }
-      const file = path.join(updatesDir, url.pathname.endsWith('.json') ? 'latest.json' : 'app.apk');
-      if (!fs.existsSync(file)) {
+      let file: string | null = null;
+      if (isBackup) file = opts.backupDir ? latestBackup(opts.backupDir) : null;
+      else if (updatesDir) file = path.join(updatesDir, url.pathname.endsWith('.json') ? 'latest.json' : 'app.apk');
+      if (!file || !fs.existsSync(file)) {
         res.writeHead(404);
         return res.end();
       }
       res.writeHead(200, {
-        'Content-Type': file.endsWith('.json') ? 'application/json' : 'application/vnd.android.package-archive',
+        'Content-Type': file.endsWith('.json') ? 'application/json' : 'application/octet-stream',
         'Content-Length': fs.statSync(file).size,
       });
       return fs.createReadStream(file).pipe(res);
@@ -209,6 +213,21 @@ export async function createServer(opts: Options) {
   const pruneTimer = setInterval(() => store.prune(), 6 * 3600_000);
   pruneTimer.unref();
 
+  // one encrypted backup a day, plus one shortly after start-up
+  let backupTimer: ReturnType<typeof setInterval> | null = null;
+  if (opts.backupDir && opts.backupKey) {
+    const run = () => {
+      try {
+        makeBackup(store, opts.backupDir!, opts.backupKey!);
+      } catch (e) {
+        console.error('backup failed:', (e as Error).message);
+      }
+    };
+    setTimeout(run, 30_000).unref();
+    backupTimer = setInterval(run, 24 * 3600_000);
+    backupTimer.unref();
+  }
+
   await new Promise<void>((r) => httpServer.listen(opts.port ?? 8080, opts.host ?? '0.0.0.0', r));
   const addr = httpServer.address();
   const port = typeof addr === 'object' && addr ? addr.port : opts.port ?? 8080;
@@ -218,6 +237,7 @@ export async function createServer(opts: Options) {
     store,
     async close() {
       clearInterval(pruneTimer);
+      if (backupTimer) clearInterval(backupTimer);
       for (const x of conns) x.ws.terminate();
       await new Promise((r) => wss.close(() => r(null)));
       await new Promise((r) => httpServer.close(() => r(null)));

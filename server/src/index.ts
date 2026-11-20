@@ -15,6 +15,8 @@ const srv = await createServer({
   setupToken: token,
   port: Number(process.env.PORT ?? 8080),
   updatesDir: `${dataDir}/updates`,
+  backupDir: `${dataDir}/backups`,
+  backupKey: process.env.BACKUP_KEY,
 });
 // Only start-up information is logged. Never message data.
 console.log(`server listening on :${srv.port}`);
