@@ -10,7 +10,7 @@ import * as Images from './images';
 import { getPushToken } from './push';
 import * as FileSystem from 'expo-file-system/legacy';
 import type JSZip from 'jszip';
-import { IMAGE_EXT, makeIds, type WaMessage } from './whatsapp';
+import { IMAGE_EXT, attachmentLabel, makeIds, type WaMessage } from './whatsapp';
 
 /** The queue of messages waiting to be sent. Kept in the encrypted database so it can be big (an imported chat). */
 class DbOutbox implements ClientStore {
@@ -529,7 +529,7 @@ class Session {
             continue;
           }
         }
-        const text = w.attachment ? (w.text ? w.text + '\n' : '') + '[' + w.attachment + ']' : w.text;
+        const text = w.deleted ? '[Deleted message]' : w.attachment ? (w.text ? w.text + '\n' : '') + attachmentLabel(w.attachment) : w.text;
         if (!text.trim()) { skipped++; continue; }
         if (!had) { await Messages.insert({ id, ts: w.ts, mine, text, state: 3, seen: true }); added++; } else skipped++;
         if (opts.share) {

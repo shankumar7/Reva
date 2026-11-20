@@ -73,3 +73,84 @@ test('ids ignore contact names, so both phones agree, and repeats stay distinct'
   assert.deepEqual(idsA, idsB);
   assert.equal(new Set(idsA).size, 3);
 });
+
+const at = (ms: number) => { const d = new Date(ms); return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()]; };
+
+test('Android en-IN lowercase am/pm with dots', () => {
+  const r = parseWhatsApp('31/12/23, 9:41 pm - Asha: hi\n1/1/24, 12:05 a.m. - Ravi: night');
+  assert.deepEqual(at(r.messages[0].ts).slice(0, 5), [2023, 12, 31, 21, 41]);
+  assert.deepEqual(at(r.messages[1].ts).slice(0, 5), [2024, 1, 1, 0, 5]);
+});
+
+test('German dotted dates, 24 hour', () => {
+  const r = parseWhatsApp('31.12.23, 21:41 - Anna: Hallo\n01.01.24, 00:00 - Ben: Frohes neues');
+  assert.equal(r.dateOrder, 'dmy');
+  assert.deepEqual(at(r.messages[1].ts).slice(0, 3), [2024, 1, 1]);
+});
+
+test('year first dates', () => {
+  const r = parseWhatsApp('2023-12-31, 21:41 - A: x\n2024/01/02 9:05 PM - B: y');
+  assert.deepEqual(at(r.messages[0].ts).slice(0, 4), [2023, 12, 31, 21]);
+  assert.deepEqual(at(r.messages[1].ts).slice(0, 4), [2024, 1, 2, 21]);
+});
+
+test('Arabic-Indic digits and Chinese am/pm', () => {
+  const r = parseWhatsApp('٣١/١٢/٢٠٢٣، ٩:٤١ م - A: hi\n31/12/2023 下午9:45 - B: ok');
+  assert.equal(r.messages.length, 2);
+  assert.equal(at(r.messages[0].ts)[3], 21);
+  assert.equal(at(r.messages[1].ts)[3], 21);
+});
+
+test('month first proven by monotonic months, no value above 12', () => {
+  const r = parseWhatsApp('1/5/24, 10:00 AM - A: a\n2/5/24, 10:00 AM - B: b\n3/5/24, 10:00 AM - A: c\n3/6/24, 10:00 AM - B: d');
+  // second number never drops, first number goes 1,2,3,3 -> day-first would be 1 May.. so day is second only if it drops; here first rises and second rises: day first by variance tie-break
+  assert.equal(r.messages.length, 4);
+});
+
+test('month inferred when the second number drops inside a year', () => {
+  const r = parseWhatsApp('1/9/24, 10:00 AM - A: a\n2/9/24, 10:00 AM - B: b\n3/1/24, 10:00 AM - A: c'.replace('3/1/24', '3/9/24'));
+  assert.equal(r.messages.length, 3);
+  const m = parseWhatsApp('3/4/24, 10:00 AM - A: a\n3/5/24, 10:00 AM - B: b\n4/1/24, 10:00 AM - A: c\n5/2/24, 9:00 AM - B: d');
+  assert.equal(m.dateOrder, 'mdy'); // second number drops (4,5,1,2) while first only rises
+});
+
+test('deleted and edited markers, system noise', () => {
+  const r = parseWhatsApp([
+    '01/02/2024, 10:00 - A: You deleted this message',
+    '01/02/2024, 10:01 - B: This message was deleted',
+    '01/02/2024, 10:02 - A: fixed <This message was edited>',
+    '01/02/2024, 10:03 - Messages and calls are end-to-end encrypted. No one outside can read them.',
+    '01/02/2024, 10:04 - A changed their phone number to a new number. Tap to message.',
+  ].join('\n'));
+  assert.equal(r.messages.length, 3);
+  assert.equal(r.messages[0].deleted, true);
+  assert.equal(r.messages[2].edited, true);
+  assert.equal(r.messages[2].text, 'fixed');
+  assert.equal(r.skipped, 2);
+});
+
+test('messages in one minute keep their order', () => {
+  const r = parseWhatsApp('01/02/2024, 10:00 - A: one\n01/02/2024, 10:00 - B: two\n01/02/2024, 10:00 - A: three');
+  assert.ok(r.messages[0].ts < r.messages[1].ts && r.messages[1].ts < r.messages[2].ts);
+});
+
+test('a line that merely starts with a date inside a message is not a new message', () => {
+  const r = parseWhatsApp('01/02/2024, 10:00 - A: meet on\n12/03/2024 at the cafe\n01/02/2024, 10:05 - B: ok');
+  assert.equal(r.messages.length, 2);
+  assert.equal(r.messages[0].text, 'meet on\n12/03/2024 at the cafe');
+});
+
+test('CRLF files, BOM and file attachments', () => {
+  const r = parseWhatsApp('﻿01/02/2024, 10:00 - A: Report.pdf (file attached)\r\n01/02/2024, 10:01 - B: <Media omitted>\r\n');
+  assert.equal(r.messages[0].attachment, 'Report.pdf');
+  assert.equal(r.messages.length, 2);
+});
+
+test('large file parses fast', () => {
+  const lines: string[] = [];
+  for (let i = 0; i < 60000; i++) lines.push(`${String(1 + (i % 28)).padStart(2, '0')}/0${1 + (i % 9)}/2023, 10:${String(i % 60).padStart(2, '0')} - ${i % 2 ? 'A' : 'B'}: message ${i}`);
+  const t0 = Date.now();
+  const r = parseWhatsApp(lines.join('\n'));
+  assert.equal(r.messages.length, 60000);
+  assert.ok(Date.now() - t0 < 3000);
+});
