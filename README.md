@@ -82,6 +82,7 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
   hold a photo to choose its albums.
 - **Stickers**: 40 stickers in four packs (Love, Daily, Moods, Fun). They take the colours of your theme, and only a tiny
   id is sent, so they cost no data.
+- **Photos and Camera buttons right in the message box** (like WhatsApp; they step aside while you type)
 - Quick "thinking of you" heart
 - **Voice calls** (the phone button in the chat header). An incoming call shows as a ringing **alarm**: **Snooze** answers,
   **Off** declines. A call in progress looks like a **timer** with Mute, Speaker and Stop. The sound goes phone to phone

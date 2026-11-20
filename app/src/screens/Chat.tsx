@@ -346,11 +346,22 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
           <ClayPress onPress={() => setAttach(true)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Add a picture" disabled={sending}>
             {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={24} />}
           </ClayPress>
-          <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18, minHeight: 52 }}>
+          <Clay radius={26} style={{ flex: 1, paddingLeft: 18, paddingRight: 6, minHeight: 52, flexDirection: 'row', alignItems: 'flex-end' }}>
             {/* one line is exactly as tall as the round buttons; longer text grows the box, then scrolls inside it */}
             <TextInput value={text} multiline numberOfLines={1} scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
               onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
-              style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 15, paddingBottom: 15, minHeight: 52, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
+              style={{ flex: 1, color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 15, paddingBottom: 15, minHeight: 52, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
+            {/* pictures one tap away, like WhatsApp: they step aside while you type */}
+            {!text.trim() && !editing && (
+              <View style={{ flexDirection: 'row', height: 52, alignItems: 'center' }}>
+                <Pressable onPress={() => void pick('gallery')} disabled={sending} hitSlop={6} accessibilityLabel="Photos" style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="image" size={22} color={t.textDim} />
+                </Pressable>
+                <Pressable onPress={() => void pick('camera')} disabled={sending} hitSlop={6} accessibilityLabel="Camera" style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="camera" size={22} color={t.textDim} />
+                </Pressable>
+              </View>
+            )}
           </Clay>
           <SendMic hasText={!!text.trim()} editing={!!editing} onSend={send} onMic={() => void startRec()} />
         </View>
