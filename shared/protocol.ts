@@ -29,6 +29,8 @@ export type Envelope =
   | { k: 'hi' } // "thinking of you"
   | { k: 'img'; id: string; ts: number; data: string; thumb: string; w: number; h: number; once?: boolean; ttl?: number; replyTo?: string }
   | { k: 'aud'; id: string; ts: number; data: string; dur: number; ttl?: number; replyTo?: string } // voice note (data = base64 m4a)
+  | { k: 'imp'; items: { id: string; ts: number; m: 0 | 1; text: string }[] } // imported chat history. m = 1: written by the sender of this envelope
+  | { k: 'impimg'; id: string; ts: number; m: 0 | 1; text: string; data: string; thumb: string; w: number; h: number }
   | { k: 'viewed'; id: string } // a view-once picture was opened
   | { k: 'pin'; id: string; on: boolean }
   | { k: 'snote'; id: string; title: string; body: string; ts: number; del?: boolean }; // shared notes

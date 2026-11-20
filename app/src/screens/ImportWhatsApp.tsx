@@ -20,10 +20,13 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
   const [order, setOrder] = useState<'auto' | 'dmy' | 'mdy'>('auto');
   const [me, setMe] = useState('');
   const [photos, setPhotos] = useState(true);
+  const [share, setShare] = useState(true);
+  const [sharePhotos, setSharePhotos] = useState(true);
+  const [phase, setPhase] = useState('Importing');
   const [busy, setBusy] = useState('');
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [err, setErr] = useState('');
-  const [done, setDone] = useState<{ added: number; photos: number; skipped: number } | null>(null);
+  const [done, setDone] = useState<{ added: number; photos: number; skipped: number; shared: number } | null>(null);
 
   const parsed: WaParse | null = useMemo(() => (loaded ? parseWhatsApp(loaded.raw, order === 'auto' ? undefined : order) : null), [loaded, order]);
   const photoCount = useMemo(() => (parsed ? parsed.messages.filter((m) => m.attachment && IMAGE_EXT.test(m.attachment)).length : 0), [parsed]);
@@ -62,7 +65,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
     if (!parsed || !loaded) return;
     setErr(''); setBusy('Importing…'); setProgress([0, parsed.messages.length]);
     try {
-      const r = await session.importWhatsApp(parsed.messages, me, loaded.zip, photos, (d, tot) => setProgress([d, tot]));
+      const r = await session.importWhatsApp(parsed.messages, me, loaded.zip, { photos, share, sharePhotos: share && sharePhotos }, (d, tot, ph) => { setProgress([d, tot]); setPhase(ph); });
       setDone(r);
     } catch (e) {
       setErr('Import stopped: ' + (e instanceof Error ? e.message : String(e)));
@@ -128,7 +131,17 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
               </View>
             )}
 
-            <Body dim>Videos, voice messages and files are noted as text only. Importing the same file twice will not make duplicates.</Body>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <Body style={{ flex: 1 }}>Also add this history to my partner's phone (sent encrypted)</Body>
+              <Switch value={share} onChange={setShare} />
+            </View>
+            {share && loaded.zip && photos && photoCount > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Body style={{ flex: 1 }}>Send the photos too (uses mobile data and takes longer)</Body>
+                <Switch value={sharePhotos} onChange={setSharePhotos} />
+              </View>
+            )}
+            <Body dim>Videos, voice messages and files are noted as text only. Importing the same file twice, on one phone or on both, will not make duplicates.</Body>
             <Button title={busy ? 'Importing…' : 'Import into this chat'} onPress={() => void run()} disabled={!!busy || !me} />
             <Button title="Choose a different file" kind="plain" onPress={() => { setLoaded(null); setErr(''); }} disabled={!!busy} />
           </Animated.View>
@@ -136,7 +149,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
 
         {progress && (
           <Clay radius={18} style={{ padding: 14, gap: 8 }}>
-            <Body>Importing {progress[0].toLocaleString()} of {progress[1].toLocaleString()}…</Body>
+            <Body>{phase} {progress[0].toLocaleString()} of {progress[1].toLocaleString()}…</Body>
             <View style={{ height: 8, borderRadius: 4, backgroundColor: t.surfaceLo, overflow: 'hidden' }}>
               <View style={{ height: 8, width: `${Math.round((progress[0] / Math.max(1, progress[1])) * 100)}%`, backgroundColor: t.accent }} />
             </View>
@@ -148,7 +161,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
             <Clay radius={22} style={{ padding: 18, gap: 6 }}>
               <Label>Done</Label>
               <Text style={{ color: t.text, fontFamily: fonts.display, fontSize: 36 }}>{done.added.toLocaleString()} ADDED</Text>
-              <Body dim>{done.photos} photos · {done.skipped} skipped (already imported or empty)</Body>
+              <Body dim>{done.photos} photos · {done.skipped} skipped (already there or empty){done.shared ? ` · ${done.shared} sent to your partner` : ''}</Body>
             </Clay>
             <Button title="Back to the chat" onPress={onBack} />
           </Animated.View>

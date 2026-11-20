@@ -26,6 +26,8 @@ export class MemoryStore implements ClientStore {
 
 export type Status = 'offline' | 'connecting' | 'online';
 
+const WINDOW = 4; // messages on the way at once
+
 export interface ClientEvents {
   onStatus?(s: Status): void;
   onPeerOnline?(on: boolean): void;
@@ -207,6 +209,7 @@ export class RevaClient {
           this.store.saveOutbox(this.outbox);
           this.o.events?.onSent?.(m.cid);
         }
+        this.flush();
         break;
       }
       case 'msg': {
@@ -224,14 +227,21 @@ export class RevaClient {
         break;
       }
       case 'error':
+        if (m.code === 'rate_limited') {
+          // the server dropped what was in flight: try those again in a moment
+          this.inflight.clear();
+          setTimeout(() => this.flush(), 1200);
+        }
         this.o.events?.onError?.(m.code);
         break;
     }
   }
 
+  /** Sends queued messages a few at a time, so a big batch (an imported chat) never floods the server. */
   private flush() {
     if (!this.ready) return;
     for (const it of this.outbox) {
+      if (this.inflight.size >= WINDOW) return;
       if (this.inflight.has(it.cid)) continue;
       this.inflight.add(it.cid);
       this.raw({ t: 'send', cid: it.cid, blob: it.blob });

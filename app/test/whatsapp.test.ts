@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseWhatsApp, waId } from '../src/core/whatsapp';
+import { parseWhatsApp, makeIds } from '../src/core/whatsapp';
 
 test('Android, day first, 24 hour clock, multi-line, system lines', () => {
   const txt = [
@@ -64,8 +64,12 @@ test('colons inside messages and names with spaces', () => {
   assert.equal(r.messages[0].text, 'meet at 5: sharp');
 });
 
-test('ids are stable and unique', () => {
-  const r = parseWhatsApp('01/01/2024, 10:00 - A: hi\n01/01/2024, 10:00 - A: hi');
-  assert.equal(waId(r.messages[0], 0), waId(r.messages[0], 0));
-  assert.notEqual(waId(r.messages[0], 0), waId(r.messages[1], 1));
+test('ids ignore contact names, so both phones agree, and repeats stay distinct', () => {
+  // phone A exports with names "Asha"/"Ravi"; phone B exports the same chat but names them "Me"/"Asha"
+  const a = parseWhatsApp('01/01/2024, 10:00 - Asha: hi\n01/01/2024, 10:00 - Asha: hi\n01/01/2024, 10:01 - Ravi: yo');
+  const b = parseWhatsApp('01/01/2024, 10:00 - Me: hi\n01/01/2024, 10:00 - Me: hi\n01/01/2024, 10:01 - Asha: yo');
+  const idsA = makeIds(a.messages, (m) => (m.sender === 'Asha' ? 'KEY-ASHA' : 'KEY-RAVI'));
+  const idsB = makeIds(b.messages, (m) => (m.sender === 'Me' ? 'KEY-ASHA' : 'KEY-RAVI'));
+  assert.deepEqual(idsA, idsB);
+  assert.equal(new Set(idsA).size, 3);
 });

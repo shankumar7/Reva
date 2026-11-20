@@ -10,25 +10,44 @@ import * as Images from './images';
 import { getPushToken } from './push';
 import * as FileSystem from 'expo-file-system/legacy';
 import type JSZip from 'jszip';
-import { IMAGE_EXT, waId, type WaMessage } from './whatsapp';
+import { IMAGE_EXT, makeIds, type WaMessage } from './whatsapp';
 
-class SecureOutbox implements ClientStore {
+/** The queue of messages waiting to be sent. Kept in the encrypted database so it can be big (an imported chat). */
+class DbOutbox implements ClientStore {
   private cache: OutboxItem[] = [];
+  private chain: Promise<void> = Promise.resolve();
+
   async init() {
+    const d = await openDb();
     try {
-      const v = await SecureStore.getItemAsync('k_outbox');
-      this.cache = v ? JSON.parse(v) : [];
+      // one-time move from the old place (the secure store)
+      const old = await SecureStore.getItemAsync('k_outbox');
+      if (old) {
+        for (const it of JSON.parse(old) as OutboxItem[]) await d.runAsync('INSERT OR IGNORE INTO outbox (cid, blob) VALUES (?,?)', it.cid, it.blob);
+        await SecureStore.deleteItemAsync('k_outbox');
+      }
     } catch {
-      this.cache = [];
+      /* nothing to move */
     }
+    this.cache = await d.getAllAsync<OutboxItem>('SELECT cid, blob FROM outbox ORDER BY seq');
   }
   loadOutbox() {
     return [...this.cache];
   }
   saveOutbox(items: OutboxItem[]) {
+    const had = new Set(this.cache.map((i) => i.cid));
+    const has = new Set(items.map((i) => i.cid));
+    const add = items.filter((i) => !had.has(i.cid));
+    const del = this.cache.filter((i) => !has.has(i.cid));
     this.cache = [...items];
-    // SecureStore has a size limit; the outbox only ever holds a few small texts
-    SecureStore.setItemAsync('k_outbox', JSON.stringify(items.slice(-200))).catch(() => {});
+    if (!add.length && !del.length) return;
+    this.chain = this.chain
+      .then(async () => {
+        const d = await openDb();
+        for (const i of del) await d.runAsync('DELETE FROM outbox WHERE cid = ?', i.cid);
+        for (const i of add) await d.runAsync('INSERT OR REPLACE INTO outbox (cid, blob) VALUES (?,?)', i.cid, i.blob);
+      })
+      .catch(() => {});
   }
 }
 
@@ -76,7 +95,7 @@ class Session {
     const c = await getCrypto();
     this.identity = c.identityFromSeed(seed);
     await openDb();
-    const outbox = new SecureOutbox();
+    const outbox = new DbOutbox();
     await outbox.init();
     this.client = new RevaClient({
       url: pairing.serverUrl,
@@ -175,6 +194,19 @@ class Session {
         });
         this.client?.send({ k: 'rcpt', ids: [env.id], state: this.viewing ? 'read' : 'delivered' }, 'r' + this.newId());
         this.set({ peerTyping: false });
+        break;
+      }
+      case 'imp': {
+        // your partner imported an old chat: add it here too (same ids, so nothing doubles up)
+        for (const it of env.items) {
+          await Messages.insert({ id: it.id, ts: it.ts, mine: it.m === 0, text: it.text, state: 3, seen: true });
+        }
+        break;
+      }
+      case 'impimg': {
+        if (await Messages.exists(env.id)) break;
+        const key = await Images.store(env.id, env.data);
+        await Messages.insert({ id: env.id, ts: env.ts, mine: env.m === 0, kind: 'img', text: env.text, state: 3, seen: true, thumb: env.thumb, w: env.w, h: env.h, imgKey: key });
         break;
       }
       case 'viewed':
@@ -353,20 +385,36 @@ class Session {
     await this.reload();
   }
 
-  /** Brings messages from a WhatsApp export into this phone. Nothing is sent to your partner. */
+  /**
+   * Brings messages from a WhatsApp export into this phone. With `share` on, the same messages are also sent
+   * (encrypted, in small batches) to your partner's phone, so both of you have the whole history.
+   */
   async importWhatsApp(
-    parsed: WaMessage[], meName: string, zip: JSZip | null, includePhotos: boolean, onProgress: (done: number, total: number) => void,
-  ): Promise<{ added: number; photos: number; skipped: number }> {
-    let added = 0, photos = 0, skipped = 0;
+    parsed: WaMessage[], meName: string, zip: JSZip | null,
+    opts: { photos: boolean; share: boolean; sharePhotos: boolean },
+    onProgress: (done: number, total: number, phase: string) => void,
+  ): Promise<{ added: number; photos: number; skipped: number; shared: number }> {
+    const c = await getCrypto();
+    const me = this.myKey ? c.b64(this.myKey) : 'me';
+    const them = this.peerKey ? c.b64(this.peerKey) : 'them';
+    const ids = makeIds(parsed, (m) => (m.sender === meName ? me : them));
+    let added = 0, photos = 0, skipped = 0, shared = 0;
+    let batch: { id: string; ts: number; m: 0 | 1; text: string }[] = [];
+    const flushBatch = () => {
+      if (!batch.length || !this.client) return;
+      this.client.send({ k: 'imp', items: batch }, 'imp' + this.newId());
+      shared += batch.length;
+      batch = [];
+    };
     const total = parsed.length;
-    for (let i = 0; i < parsed.length; i++) {
+    for (let i = 0; i < total; i++) {
       const w = parsed[i];
-      const id = waId(w, i);
-      if (i % 20 === 0) onProgress(i, total);
-      if (await Messages.exists(id)) { skipped++; continue; }
+      const id = ids[i];
+      if (i % 20 === 0) onProgress(i, total, 'Importing');
       const mine = w.sender === meName;
+      const had = await Messages.exists(id);
       try {
-        if (w.attachment && IMAGE_EXT.test(w.attachment) && includePhotos && zip && photos < 400) {
+        if (w.attachment && IMAGE_EXT.test(w.attachment) && opts.photos && zip && photos < 400) {
           const f = zip.file(w.attachment) ?? zip.file(new RegExp('(^|/)' + w.attachment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'))[0];
           if (f) {
             const b64 = await f.async('base64');
@@ -374,23 +422,35 @@ class Session {
             await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
             const p = await Images.prepare(tmp, 2000);
             await FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
-            const key = await Images.store(id, p.data);
-            await Messages.insert({ id, ts: w.ts, mine, kind: 'img', text: w.text, state: 3, seen: true, thumb: p.thumb, w: p.w, h: p.h, imgKey: key });
-            added++; photos++;
+            if (!had) {
+              const key = await Images.store(id, p.data);
+              await Messages.insert({ id, ts: w.ts, mine, kind: 'img', text: w.text, state: 3, seen: true, thumb: p.thumb, w: p.w, h: p.h, imgKey: key });
+              added++;
+            }
+            photos++;
+            if (opts.share && opts.sharePhotos && this.client) {
+              this.client.send({ k: 'impimg', id, ts: w.ts, m: mine ? 1 : 0, text: w.text, data: p.data, thumb: p.thumb, w: p.w, h: p.h }, 'ii' + this.newId());
+              shared++;
+            }
             continue;
           }
         }
         const text = w.attachment ? (w.text ? w.text + '\n' : '') + '[' + w.attachment + ']' : w.text;
         if (!text.trim()) { skipped++; continue; }
-        await Messages.insert({ id, ts: w.ts, mine, text, state: 3, seen: true });
-        added++;
+        if (!had) { await Messages.insert({ id, ts: w.ts, mine, text, state: 3, seen: true }); added++; } else skipped++;
+        if (opts.share) {
+          batch.push({ id, ts: w.ts, m: mine ? 1 : 0, text });
+          if (batch.length >= 120) flushBatch();
+        }
       } catch {
         skipped++;
       }
     }
-    onProgress(total, total);
+    flushBatch();
+    onProgress(total, total, 'Done');
+    this.set({ pending: this.client?.pending ?? 0 });
     await this.reload();
-    return { added, photos, skipped };
+    return { added, photos, skipped, shared };
   }
 
   async pinMessage(id: string, on: boolean) {

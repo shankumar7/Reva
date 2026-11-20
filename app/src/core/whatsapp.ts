@@ -104,12 +104,23 @@ export function parseWhatsApp(raw: string, forceOrder?: 'dmy' | 'mdy'): WaParse 
   return { messages, senders, dateOrder, ambiguous, skipped };
 }
 
-/** A short stable id so importing the same file twice does not duplicate messages. */
-export function waId(m: WaMessage, index: number): string {
-  let h = 5381;
-  const s = m.ts + '|' + m.sender + '|' + m.text + '|' + (m.attachment ?? '');
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  return 'wa' + (h >>> 0).toString(36) + '-' + index.toString(36);
+/**
+ * Stable ids that do not depend on contact names, so the same chat imported on both phones lines up:
+ * the id comes from the time, who wrote it (by key), the text, and which repeat of that it is.
+ */
+export function makeIds(messages: WaMessage[], authorKey: (m: WaMessage) => string): string[] {
+  const seen = new Map<string, number>();
+  return messages.map((m) => {
+    const base = m.ts + '|' + authorKey(m) + '|' + m.text + '|' + (m.attachment ? 'att' : '');
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    let h = 5381;
+    const s = base + '|' + n;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    let h2 = 52711;
+    for (let i = s.length - 1; i >= 0; i--) h2 = ((h2 << 5) + h2 + s.charCodeAt(i)) | 0;
+    return 'wa' + (h >>> 0).toString(36) + (h2 >>> 0).toString(36);
+  });
 }
 
 export const IMAGE_EXT = /\.(jpe?g|png|webp)$/i;

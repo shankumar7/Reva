@@ -170,3 +170,17 @@ test('a picture-sized message (800 KB) passes through, in order, with queueing',
   A.cl.disconnect(); B.cl.disconnect();
   await ctx.srv.close();
 });
+
+test('a big batch (400 messages) is paced, never rate-limited into loss, and arrives complete and in order', async () => {
+  const ctx = await setup();
+  const { a, b } = await pair(ctx);
+  const A = mk(ctx, a, b), B = mk(ctx, b, a);
+  A.cl.connect(); B.cl.connect();
+  await until(() => A.cl.status === 'online' && B.cl.status === 'online');
+  for (let i = 0; i < 400; i++) A.cl.send({ k: 'msg', id: 'b' + i, ts: i, text: 'm' + i }, 'b' + i);
+  await until(() => B.inbox.length === 400, 25000);
+  assert.deepEqual(B.inbox.map((e: any) => e.text), Array.from({ length: 400 }, (_, i) => 'm' + i));
+  assert.equal(A.cl.pending, 0);
+  A.cl.disconnect(); B.cl.disconnect();
+  await ctx.srv.close();
+});
