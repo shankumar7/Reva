@@ -61,11 +61,18 @@ export class RevaClient {
   private ping: ReturnType<typeof setInterval> | null = null;
   private lastPong = 0;
   peer: PeerKeys | null;
+  private push: { token: string; kind: 'calculator' | 'notes' } | null = null;
 
   constructor(private o: ClientOptions) {
     this.store = o.store ?? new MemoryStore();
     this.outbox = this.store.loadOutbox();
     this.peer = o.peer ?? null;
+  }
+
+  /** The phone's notification address. It is sent on every connect and never carries chat content. */
+  setPush(token: string, kind: 'calculator' | 'notes') {
+    this.push = { token, kind };
+    if (this.ready) this.raw({ t: 'push', token, kind });
   }
 
   setPeer(p: PeerKeys) {
@@ -181,6 +188,7 @@ export class RevaClient {
           if (Date.now() - this.lastPong > 40000) return this.reconnectNow();
           this.raw({ t: 'ping' });
         }, 15000);
+        if (this.push) this.raw({ t: 'push', token: this.push.token, kind: this.push.kind });
         this.flush();
         break;
       }

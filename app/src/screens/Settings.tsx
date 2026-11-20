@@ -16,6 +16,7 @@ import { Codes } from './Setup';
 import { BackupScreen } from './Backup';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
+import { session } from '../core/session';
 
 export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
   const d = disguises.find((x) => x.id === id) ?? disguises[0];
@@ -173,6 +174,8 @@ export function SettingsScreen({
           })}
         </View>
         <Body dim>Applies to messages you send from now on. Ask your partner to set the same on their phone.</Body>
+        <Row label="Notifications (a plain 'something new', never any content)" value={settings.notifications} onChange={(v) => set({ notifications: v })} />
+        <Body dim>{{ on: 'Notifications are on.', denied: 'Android has notifications blocked for this app. Allow them in Android settings.', unavailable: 'Notifications are not set up on this build yet.', unknown: 'Opens on the next unlock.' }[session.getState().push]}</Body>
         <Row label="Lock the moment you leave the app" value={settings.autoLockSeconds === 0} onChange={(v) => set({ autoLockSeconds: v ? 0 : 30 })} />
       </Section>
 

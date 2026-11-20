@@ -34,7 +34,8 @@ netfilter-persistent save >/dev/null 2>&1 || true
 
 say "Setting up folders and secrets"
 docker network inspect edge >/dev/null 2>&1 || docker network create edge >/dev/null
-mkdir -p "$EDGE/sites" "$APP/data/updates" "$APP/data/backups"
+mkdir -p "$EDGE/sites" "$APP/data/updates" "$APP/data/backups" "$APP/secrets"
+chmod 700 "$APP/secrets"
 rm -rf "$APP/src" && mkdir -p "$APP/src" && cp -r "$HERE/server" "$HERE/shared" "$HERE/deploy" "$APP/src/"
 rm -rf "$APP/src/server/node_modules" "$APP/src/server/dist"
 chown -R 1000:1000 "$APP/data"

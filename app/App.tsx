@@ -135,6 +135,12 @@ export default function App() {
     setMode('disguise');
   }
 
+  // register for notifications the first time the chat opens (and again if the disguise kind changes)
+  const kindNow = disguises.find((d) => d.id === settings.disguise)?.kind ?? 'calculator';
+  useEffect(() => {
+    if (mode === 'chat' && settings.notifications) void session.enablePush(kindNow);
+  }, [mode, settings.notifications, kindNow]);
+
   useEffect(() => {
     session.config = { ttlSeconds: settings.disappear, saveToGallery: settings.saveToGallery };
   }, [settings.disappear, settings.saveToGallery]);

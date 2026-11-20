@@ -13,6 +13,7 @@ services:
     user: "1000:1000"
     volumes:
       - ./data:/data
+      - ./secrets:/secrets:ro
     networks: [edge]
     mem_limit: 512m
     read_only: true

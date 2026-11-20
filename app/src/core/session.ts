@@ -7,6 +7,7 @@ import { getCrypto, rawSodium } from './sodium';
 import { Vault } from './storage';
 import { Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
 import * as Images from './images';
+import { getPushToken } from './push';
 import * as FileSystem from 'expo-file-system/legacy';
 import type JSZip from 'jszip';
 import { IMAGE_EXT, waId, type WaMessage } from './whatsapp';
@@ -40,12 +41,13 @@ export interface ChatState {
   pending: number;
   hiAt: number; // last "thinking of you" received
   notes: SharedNote[];
+  push: 'unknown' | 'on' | 'denied' | 'unavailable';
 }
 
 type Listener = () => void;
 
 class Session {
-  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [] };
+  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [], push: 'unknown' };
   private listeners = new Set<Listener>();
   private client: RevaClient | null = null;
   private identity: Identity | null = null;
@@ -303,6 +305,17 @@ class Session {
       return await Images.saveToGallery(id, m.imgKey);
     } catch {
       return false;
+    }
+  }
+
+  /** Turn on notifications for this phone (asks Android for permission the first time). */
+  async enablePush(kind: 'calculator' | 'notes') {
+    const r = await getPushToken();
+    if (r.ok) {
+      this.client?.setPush(r.token, kind);
+      this.set({ push: 'on' });
+    } else {
+      this.set({ push: r.reason });
     }
   }
 
