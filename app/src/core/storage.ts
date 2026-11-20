@@ -8,6 +8,7 @@ export interface Settings {
   notesUnlock: 'search' | 'title'; // how Notes opens the chat
   saveToGallery: boolean; // default for received pictures
   autoLockSeconds: number; // 0 = immediately
+  lastBackup: number; // when the last backup file was made (ms), 0 = never
   notifications: boolean;
   nickname: string; // what you call your partner (shown in the chat)
   disappear: number; // seconds until new messages disappear, 0 = never
@@ -15,7 +16,7 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
   theme: 'auto', disguise: 'Calculator', notesUnlock: 'search', saveToGallery: false,
-  autoLockSeconds: 0, notifications: true, nickname: 'Us', disappear: 0,
+  autoLockSeconds: 0, lastBackup: 0, notifications: true, nickname: 'Us', disappear: 0,
 };
 
 export interface Pairing {
@@ -61,6 +62,11 @@ export const Vault = {
     const id = c.newIdentity();
     await SecureStore.setItemAsync(K.seed, c.b64(id.seed), opt);
     return id.seed;
+  },
+
+  async setSeed(seed: Uint8Array) {
+    const c = await getCrypto();
+    await SecureStore.setItemAsync(K.seed, c.b64(seed), opt);
   },
 
   /** Random key for the encrypted chat database. */

@@ -81,8 +81,8 @@ export function createSodiumLite(rand: (n: number) => Uint8Array) {
     base64_variants: { URLSAFE_NO_PADDING },
     to_base64: (u: Uint8Array, _variant?: number) => toB64(u),
     from_base64: (s: string, _variant?: number) => fromB64(s),
-    from_string: utf8Encode,
-    to_string: utf8Decode,
+    from_string: (s: string) => (typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s) : utf8Encode(s)),
+    to_string: (u: Uint8Array) => (typeof TextDecoder !== 'undefined' ? new TextDecoder().decode(u) : utf8Decode(u)),
     randombytes_buf: (n: number) => rand(n),
 
     crypto_sign_seed_keypair(seed: Uint8Array) {

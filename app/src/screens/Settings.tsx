@@ -13,6 +13,7 @@ import type { Settings as S } from '../core/storage';
 import { safetyNumber } from '../core/pairing';
 import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateResult } from '../core/update';
 import { Codes } from './Setup';
+import { BackupScreen } from './Backup';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 
@@ -48,7 +49,7 @@ export function SettingsScreen({
   const [upd, setUpd] = useState<UpdateResult | null>(null);
   const [updMsg, setUpdMsg] = useState('');
   const [checking, setChecking] = useState(false);
-  const [sub, setSub] = useState<'main' | 'codes'>('main');
+  const [sub, setSub] = useState<'main' | 'codes' | 'backup'>('main');
   const [shortName, setShortName] = useState('');
   const [shortIcon, setShortIcon] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -87,6 +88,7 @@ export function SettingsScreen({
     if (err) setUpdMsg(err);
   }
 
+  if (sub === 'backup') return <BackupScreen settings={settings} onSettings={onChange} onBack={() => setSub('main')} />;
   if (sub === 'codes') {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 20, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
@@ -188,7 +190,12 @@ export function SettingsScreen({
           ])} />
       </Section>
 
-      <Section title="App updates" i={5}>
+      <Section title="Backup" i={5}>
+        <Body dim>{settings.lastBackup ? 'Last backup: ' + new Date(settings.lastBackup).toLocaleDateString() : 'You have not made a backup yet.'}</Body>
+        <Button title="Backup and restore" onPress={() => setSub('backup')} />
+      </Section>
+
+      <Section title="App updates" i={6}>
         <Body dim>Version {currentVersion()}</Body>
         <Button title={checking ? 'Checking…' : 'Check for updates'} disabled={checking} onPress={() => void onCheck()} />
         {upd?.kind === 'latest' && <Body>You have the latest version.</Body>}

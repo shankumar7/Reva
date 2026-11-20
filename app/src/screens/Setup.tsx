@@ -8,14 +8,15 @@ import { ScanQr } from './ScanQr';
 import { ShowQr } from './ShowQr';
 import { finishAsFirst, joinAsSecond, parseQr, startAsFirst } from '../core/pairing';
 import { getCrypto } from '../core/sodium';
-import { Vault } from '../core/storage';
+import { Vault, defaultSettings } from '../core/storage';
+import { BackupScreen } from './Backup';
 
-type Step = 'role' | 'server' | 'showFirst' | 'scanReply' | 'scanPartner' | 'showSecond' | 'codes';
+type Step = 'role' | 'server' | 'showFirst' | 'scanReply' | 'scanPartner' | 'showSecond' | 'codes' | 'restore';
 
-export function Setup({ onDone, startError }: { onDone: () => void; startError?: string }) {
+export function Setup({ onDone, startError, initialStep }: { onDone: () => void; startError?: string; initialStep?: 'codes' }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
-  const [step, setStep] = useState<Step>('role');
+  const [step, setStep] = useState<Step>(initialStep ?? 'role');
   const [qr, setQr] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(startError ? 'Start-up problem: ' + startError : '');
@@ -42,6 +43,10 @@ export function Setup({ onDone, startError }: { onDone: () => void; startError?:
       setStep('showFirst');
     });
 
+  if (step === 'restore') {
+    return <BackupScreen restoreOnly settings={defaultSettings} onSettings={() => {}} onBack={() => setStep('role')} onRestored={() => setStep('codes')} />;
+  }
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 24, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
       <Animated.View key={step} entering={FadeIn.duration(240)} exiting={FadeOut.duration(120)} style={{ gap: 18 }}>
@@ -51,6 +56,7 @@ export function Setup({ onDone, startError }: { onDone: () => void; startError?:
             <Body dim>Two phones, one private space. One of you starts, the other joins by scanning.</Body>
             <Button title="I am starting" onPress={() => setStep('server')} />
             <Button title="My partner already started" kind="plain" onPress={() => setStep('scanPartner')} />
+            <Button title="Restore from a backup" kind="plain" onPress={() => setStep('restore')} />
           </>
         )}
 

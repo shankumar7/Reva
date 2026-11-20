@@ -39,6 +39,7 @@ export default function App() {
   const leftAt = useRef(0);
 
   const [bootError, setBootError] = useState('');
+  const [setupStart, setSetupStart] = useState<'codes' | undefined>(undefined);
   const boot = useCallback(async () => {
     try {
       setBootError('');
@@ -46,7 +47,10 @@ export default function App() {
       setSettings(s);
       codes.current = c;
       const ready = !!p?.peerSignPk && !!c.calc;
-      if (!ready) return setMode('setup'); // new, or a half-finished setup: continue it
+      if (!ready) {
+        setSetupStart(p?.peerSignPk ? 'codes' : undefined); // paired or restored, but no codes yet
+        return setMode('setup'); // new, or a half-finished setup: continue it
+      }
       setMode('disguise');
       // connecting must never block opening the app
       session.start().catch(() => {});
@@ -151,7 +155,7 @@ export default function App() {
         <ThemeProvider choice={settings.theme}>
           <Inner>
             <Animated.View key={mode} entering={FadeIn.duration(220)} style={{ flex: 1 }}>
-              {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} />}
+              {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} initialStep={setupStart} />}
               {mode === 'disguise' && (kind === 'calculator'
                 ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} />
                 : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} />)}
