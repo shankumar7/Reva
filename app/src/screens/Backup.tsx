@@ -6,7 +6,7 @@ import { Body, Button, Clay, H1, Label, Switch } from '../ui/Clay';
 import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import type { Settings } from '../core/storage';
-import { createBackup, restoreBackup, shareBackup } from '../core/backup';
+import { createBackup, exportText, restoreBackup, shareBackup } from '../core/backup';
 
 function Field({ v, set, ph }: { v: string; set: (s: string) => void; ph: string }) {
   const t = useTheme();
@@ -19,8 +19,8 @@ function Field({ v, set, ph }: { v: string; set: (s: string) => void; ph: string
 }
 
 /** Create a backup (to save on Google Drive) or restore one. */
-export function BackupScreen({ settings, onSettings, onBack, restoreOnly, onRestored }: {
-  settings: Settings; onSettings: (s: Settings) => void; onBack: () => void; restoreOnly?: boolean; onRestored?: () => void;
+export function BackupScreen({ settings, onSettings, onBack, restoreOnly, onRestored, nickname }: {
+  nickname?: string; settings: Settings; onSettings: (s: Settings) => void; onBack: () => void; restoreOnly?: boolean; onRestored?: () => void;
 }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
@@ -87,6 +87,16 @@ export function BackupScreen({ settings, onSettings, onBack, restoreOnly, onRest
               <Switch value={photos} onChange={setPhotos} />
             </View>
             <Button title={busy || 'Create backup and save to Drive'} onPress={() => void make()} disabled={!!busy} />
+          </>
+        )}
+
+        {!restoreOnly && (
+          <>
+            <Label style={{ marginTop: 10 }}>Export as plain text</Label>
+            <Body dim>A readable copy of the chat, like WhatsApp's export. It is NOT encrypted, so anyone who gets the file can read it.</Body>
+            <Button title="Export as text" kind="plain" disabled={!!busy} onPress={async () => {
+              try { setErr(''); await shareBackup(await exportText(nickname ?? '')); } catch (e) { setErr('Export failed: ' + (e instanceof Error ? e.message : String(e))); }
+            }} />
           </>
         )}
 

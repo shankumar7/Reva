@@ -90,3 +90,21 @@ export async function restoreBackup(fileUri: string, passphrase: string, onStatu
   }
   for (const n of data.snotes) await SharedNotes.put(n);
 }
+
+/** The whole chat as a readable text file, in the same layout WhatsApp uses. NOT encrypted: share it carefully. */
+export async function exportText(nickname: string): Promise<string> {
+  const all = await Messages.all();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const lines = all
+    .filter((m) => !m.deleted)
+    .map((m) => {
+      const d = new Date(m.ts);
+      const when = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const who = m.mine ? 'Me' : nickname || 'Partner';
+      const body = m.kind === 'img' ? '<photo>' + (m.text ? ' ' + m.text : '') : m.kind === 'aud' ? `<voice note ${m.w}s>` : m.text;
+      return `${when} - ${who}: ${body}`;
+    });
+  const uri = (FileSystem.cacheDirectory ?? '') + 'chat-' + new Date().toISOString().slice(0, 10) + '.txt';
+  await FileSystem.writeAsStringAsync(uri, lines.join('\n'));
+  return uri;
+}

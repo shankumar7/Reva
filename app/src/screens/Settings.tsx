@@ -89,7 +89,7 @@ export function SettingsScreen({
     if (err) setUpdMsg(err);
   }
 
-  if (sub === 'backup') return <BackupScreen settings={settings} onSettings={onChange} onBack={() => setSub('main')} />;
+  if (sub === 'backup') return <BackupScreen nickname={settings.nickname} settings={settings} onSettings={onChange} onBack={() => setSub('main')} />;
   if (sub === 'codes') {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 20, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
