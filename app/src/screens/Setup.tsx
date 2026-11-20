@@ -13,6 +13,7 @@ import { finishAsFirst, joinAsSecond, parseQr, startAsFirst } from '../core/pair
 import { getCrypto } from '../core/sodium';
 import { Vault, defaultSettings } from '../core/storage';
 import { BackupScreen } from './Backup';
+import { useBackHandler } from '../core/backStack';
 
 type Step = 'role' | 'server' | 'showFirst' | 'scanReply' | 'scanPartner' | 'showSecond' | 'codes' | 'restore' | 'done';
 type Path = 'start' | 'join';
@@ -84,12 +85,9 @@ export function Setup({ onDone, startError, initialStep, onExit }: { onDone: () 
   const stepNo = path ? ORDER[path].indexOf(step) + 1 : 0;
   const total = path ? ORDER[path].length : 0;
 
-  if (step === 'restore') {
-    return <BackupScreen restoreOnly settings={defaultSettings} onSettings={() => {}} onBack={() => go('role')} onRestored={() => { setPath('start'); go('codes'); }} />;
-  }
-
   const back = (): (() => void) | undefined => {
     if (step === 'role') return onExit;
+    if (step === 'codes' || step === 'done') return undefined;
     if (step === 'server' || step === 'scanPartner') return () => { setPath(null); go('role'); };
     if (step === 'showFirst') return () => go('server');
     if (step === 'scanReply') return () => go('showFirst');
@@ -97,6 +95,12 @@ export function Setup({ onDone, startError, initialStep, onExit }: { onDone: () 
     return undefined;
   };
   const onBack = back();
+  useBackHandler(step === 'restore' || !!onBack, () => (step === 'restore' ? go('role') : onBack?.()), 1);
+
+  if (step === 'restore') {
+    return <BackupScreen restoreOnly settings={defaultSettings} onSettings={() => {}} onBack={() => go('role')} onRestored={() => { setPath('start'); go('codes'); }} />;
+  }
+
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>

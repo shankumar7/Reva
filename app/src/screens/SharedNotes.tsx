@@ -6,6 +6,7 @@ import { Button, ClayPress, H1, Label } from '../ui/Clay';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
+import { useBackHandler } from '../core/backStack';
 import { session } from '../core/session';
 import type { SharedNote } from '../core/db';
 
@@ -15,6 +16,7 @@ export function SharedNotesScreen({ onBack }: { onBack: () => void }) {
   const ins = useSafeAreaInsets();
   const chat = useSyncExternalStore(session.subscribe, session.getState);
   const [editing, setEditing] = useState<SharedNote | 'new' | null>(null);
+  useBackHandler(!!editing, () => setEditing(null), 1);
 
   if (editing) return <Editor note={editing} onClose={() => setEditing(null)} />;
   return (

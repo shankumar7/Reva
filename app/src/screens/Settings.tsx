@@ -19,6 +19,7 @@ import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { session } from '../core/session';
 import { whileSystemUi } from '../core/lockGuard';
+import { useBackHandler } from '../core/backStack';
 
 export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
   const d = disguises.find((x) => x.id === id) ?? disguises[0];
@@ -60,6 +61,7 @@ export function SettingsScreen({
   const allIds = disguises.map((d) => d.id);
 
   useEffect(() => { void safetyNumber().then(setSafety); }, []);
+  useBackHandler(sub !== 'main', () => setSub('main'), 1); // back from themes, codes or backup returns to Settings
 
   async function pickDisguise(id: string) {
     set({ disguise: id });

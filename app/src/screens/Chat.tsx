@@ -16,6 +16,7 @@ import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import { contrast } from '../colors';
 import { whileSystemUi } from '../core/lockGuard';
+import { useBackHandler } from '../core/backStack';
 import { session } from '../core/session';
 import { dataUri } from '../core/images';
 import type { Msg } from '../core/db';
@@ -90,6 +91,10 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
     const iv = setInterval(() => tickNow((n) => n + 1), 15_000);
     return () => clearInterval(iv);
   }, []);
+
+  // back button: close search, then cancel a reply or an edit
+  useBackHandler(searching, () => { setSearching(false); setQ(''); }, 1);
+  useBackHandler(!!(replyTo || editing), () => { if (editing) setText(''); setReplyTo(null); setEditing(null); }, 2);
 
   const byId = useMemo(() => new Map(chat.messages.map((m) => [m.id, m])), [chat.messages]);
   const searchMode = searching && q.trim().length > 0;
@@ -285,10 +290,11 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
           <ClayPress onPress={() => setAttach(true)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Add a picture" disabled={sending}>
             {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={24} />}
           </ClayPress>
-          <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18 }}>
-            <TextInput value={text} multiline placeholder="Message" placeholderTextColor={t.textDim}
+          <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18, minHeight: 52 }}>
+            {/* one line is exactly as tall as the round buttons; longer text grows the box, then scrolls inside it */}
+            <TextInput value={text} multiline scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
               onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
-              style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, paddingVertical: 13, maxHeight: 130 }} />
+              style={{ color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 15, paddingBottom: 15, minHeight: 52, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
           </Clay>
           {text.trim() ? (
             <ClayPress onPress={send} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Send">

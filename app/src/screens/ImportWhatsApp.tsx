@@ -11,6 +11,7 @@ import { fonts, useTheme } from '../theme';
 import { parseWhatsApp, IMAGE_EXT, type WaParse } from '../core/whatsapp';
 import { session } from '../core/session';
 import { whileSystemUi } from '../core/lockGuard';
+import { useBackHandler } from '../core/backStack';
 
 type Loaded = { raw: string; zip: JSZip | null; name: string };
 
@@ -28,6 +29,8 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [err, setErr] = useState('');
   const [done, setDone] = useState<{ added: number; photos: number; skipped: number; shared: number } | null>(null);
+
+  useBackHandler(!!loaded && !done && !busy, () => { setLoaded(null); setErr(''); }, 1);
 
   const parsed: WaParse | null = useMemo(() => (loaded ? parseWhatsApp(loaded.raw, order === 'auto' ? undefined : order) : null), [loaded, order]);
   const photoCount = useMemo(() => (parsed ? parsed.messages.filter((m) => m.attachment && IMAGE_EXT.test(m.attachment)).length : 0), [parsed]);

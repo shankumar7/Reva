@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { Button, Clay, ClayPress, H1, Label } from '../ui/Clay';
 import { fonts, useTheme } from '../theme';
+import { useBackHandler } from '../core/backStack';
 
 interface Note { id: number; title: string; body: string; ts: number }
 
@@ -23,6 +24,7 @@ export function Notes({ tryUnlock, titleUnlock, onSecret }: { tryUnlock: (code: 
   const [notes, setNotes] = useState<Note[]>([]);
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Note | 'new' | null>(null);
+  useBackHandler(!!editing, () => setEditing(null), 1);
 
   const load = useCallback(async () => {
     const d = await notesDb();

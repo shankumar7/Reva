@@ -28,6 +28,7 @@ import { StarredScreen } from './src/screens/Starred';
 import { ImportWhatsApp } from './src/screens/ImportWhatsApp';
 import { Disguise } from './modules/disguise';
 import { lockGuard } from './src/core/lockGuard';
+import { handleBack } from './src/core/backStack';
 
 type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes' | 'starred' | 'import';
 
@@ -108,6 +109,7 @@ export default function App() {
   // the phone's back button goes back one screen instead of closing the app
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (handleBack()) return true; // something inside the screen (a search, an editor, a step) closes first
       if (mode === 'settings' || mode === 'notes' || mode === 'starred' || mode === 'import') { setMode(mode === 'settings' ? from : 'chat'); return true; }
       return false;
     });
