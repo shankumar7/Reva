@@ -239,3 +239,11 @@ export function makeIds(messages: WaMessage[], authorKey: (m: WaMessage) => stri
     return 'wa' + (h >>> 0).toString(36) + (h2 >>> 0).toString(36);
   });
 }
+
+/** Find an attachment inside an export zip: exact name, then any folder, then ignoring case and invisible marks. */
+export function findInZip<T extends { name: string }>(files: T[], wanted: string): T | undefined {
+  const clean = (s: string) => s.replace(INVISIBLE, '').replace(SPACES, ' ').normalize('NFC').toLowerCase().trim();
+  const w = clean(wanted);
+  const base = (s: string) => clean(s.split('/').pop() ?? s);
+  return files.find((f) => clean(f.name) === w) ?? files.find((f) => base(f.name) === base(w));
+}

@@ -154,3 +154,24 @@ test('large file parses fast', () => {
   assert.equal(r.messages.length, 60000);
   assert.ok(Date.now() - t0 < 3000);
 });
+
+test('attachments are found in a zip: exact, in a folder, other case', async () => {
+  const { default: JSZip } = await import('jszip');
+  const z = new JSZip();
+  z.file('_chat.txt', 'x');
+  z.file('IMG-20240305-WA0001.jpg', 'a');
+  z.file('media/PHOTO-2.JPG', 'b');
+  const { findInZip } = await import('../src/core/whatsapp');
+  const files = z.file(/.*/).filter((f) => !f.dir);
+  assert.equal(findInZip(files, 'IMG-20240305-WA0001.jpg')?.name, 'IMG-20240305-WA0001.jpg');
+  assert.equal(findInZip(files, 'photo-2.jpg')?.name, 'media/PHOTO-2.JPG');
+  assert.equal(findInZip(files, 'missing.jpg'), undefined);
+});
+
+test('real export: lowercase pm after a narrow no-break space, empty system line, phone-number sender', () => {
+  const r = parseWhatsApp('17/07/2026, 2:39 pm - Messages and calls are end-to-end encrypted. Learn more\n01/09/2026, 6:56 pm - \n01/09/2026, 6:56 pm - +91 98765 43210: hi\n01/09/2026, 6:57 pm - Me: <Media omitted>');
+  assert.equal(r.messages.length, 2);
+  assert.equal(r.messages[0].sender, '+91 98765 43210');
+  assert.equal(new Date(r.messages[0].ts).getHours(), 18);
+  assert.equal(r.dateOrder, 'dmy');
+});

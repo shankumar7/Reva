@@ -10,7 +10,7 @@ import * as Images from './images';
 import { getPushToken } from './push';
 import * as FileSystem from 'expo-file-system/legacy';
 import type JSZip from 'jszip';
-import { IMAGE_EXT, attachmentLabel, makeIds, type WaMessage } from './whatsapp';
+import { IMAGE_EXT, attachmentLabel, findInZip, makeIds, type WaMessage } from './whatsapp';
 
 /** The queue of messages waiting to be sent. Kept in the encrypted database so it can be big (an imported chat). */
 class DbOutbox implements ClientStore {
@@ -509,7 +509,7 @@ class Session {
       const had = await Messages.exists(id);
       try {
         if (w.attachment && IMAGE_EXT.test(w.attachment) && opts.photos && zip && photos < 400) {
-          const f = zip.file(w.attachment) ?? zip.file(new RegExp('(^|/)' + w.attachment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'))[0];
+          const f = findInZip(zip.file(/.*/).filter((x) => !x.dir), w.attachment);
           if (f) {
             const b64 = await f.async('base64');
             const tmp = FileSystem.cacheDirectory + 'wa-' + i + '.jpg';
