@@ -29,6 +29,7 @@ const ICONS = {
   mic: ['M9 4a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0z', 'M5 11a7 7 0 0 0 14 0M12 18v3'],
   play: ['M7 4l13 8-13 8z'],
   stop: ['M6 6h12v12H6z'],
+  down: ['M6 9l6 6 6-6'],
   lock: ['M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V8a4 4 0 0 1 8 0v3'],
 } as const;
 export type IconName = keyof typeof ICONS;
