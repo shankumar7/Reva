@@ -1,5 +1,7 @@
 # Reva
 
+<img src="docs/screenshots/app-icon.png" width="96" align="right">
+
 A private, end-to-end encrypted chat for two people. On the phone it looks like an ordinary utility app
 (Calculator, Notes and more). Reva's name never appears on the phone. Everything it uses is free:
 Oracle's Always Free server, DuckDNS, Let's Encrypt, Firebase's free push, and your own Google Drive.
@@ -84,12 +86,15 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - **Voice calls** (the phone button in the chat header). An incoming call shows as a ringing **alarm**: **Snooze** answers,
   **Off** declines. A call in progress looks like a **timer** with Mute, Speaker and Stop. The sound goes phone to phone
   (WebRTC, encrypted); when the networks do not allow that, it goes through your own free relay (coturn) on the server.
-  Calls end up as a line in the chat ("Voice call 2:31", "Missed voice call"). Keep the app open during a call.
+  Calls end up as a line in the chat ("Voice call 2:31", "Missed voice call"). A call keeps going when you leave the app or lock
+  the screen (a plain "Timer · Running" notification shows while it lasts), and a call offer wakes the other phone with a
+  plain "Alarm: Tap to open" notification when push is set up.
 - Voice notes (up to 2 minutes), encrypted like everything else
 - Pictures from the gallery or camera: shrunk, location removed, encrypted on the phone, pinch-to-zoom viewer,
   an explicit **Save to gallery** button (default off, switchable), and **view once**
 - Shared notes you both see and edit (newest edit wins)
 - Day separators, grouped bubbles, animated typing dots
+- Delivery shown as one quiet line under your newest message (Sending, Sent, Delivered, Seen) instead of ticks on every bubble
 
 **Bring your old chat**
 - **Import a WhatsApp chat** from "Export chat" (text, or zip with photos). Handles Android and iPhone layouts,
@@ -109,7 +114,9 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
   the Notes disguise, and touch the sensor. Fingerprint only (no phone PIN fallback), and the prompt just says "Confirm".
   Anyone whose fingerprint is saved on the phone can use it, so turn it on only if that suits you.
 - A decoy code opens a fake empty chat. An optional wipe code erases the phone.
-- Locks itself when you leave. Screenshots, screen recording and the recent-apps picture are blocked.
+- Locks itself when you leave. The recent-apps picture is hidden (Android 13 and newer; older phones shield the window
+  while the app is not in front). **Screenshots are allowed** (so you can share your pairing code), except while a **view-once**
+  picture is open: those cannot be captured.
 
 **Look**
 - Soft "clay" style, smooth fades with no bounce, big headline type.
@@ -127,7 +134,8 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - Five wrong codes in a row make the app ignore codes for a while (30 seconds, then longer).
 
 **No cover mode**
-- Turn the disguise off in Settings and the app opens straight into the chat, with a plain "Chat" icon.
+- Turn the disguise off in Settings and the app opens straight into the chat, named **Reva**, with its own icon (two chat
+  bubbles and a heart).
 
 **Safety of your data**
 - Updates keep your messages: the app only ever adds to its database (there is a test for this), and updates
@@ -194,7 +202,7 @@ Release builds are signed with a private key kept **outside** this repository.
 
 ## Honest status
 
-Voice calls are new and have **not been tried on two real phones yet**: the call logic is tested with fake connections, and the
+Voice calls are new and have **not been tried on two real phones yet** (the background call service and the alarm wake-up are untested too): the call logic is tested with fake connections, and the
 relay login is tested, but the real audio, the microphone, the speaker switch and the relay need a real test.
 Calls need the Oracle security list to allow **UDP 3478, TCP 3478 and UDP 49160-49200** (see `docs/SERVER-SETUP.md`).
 

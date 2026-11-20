@@ -88,7 +88,8 @@ class Session {
     rtc: nativeRtc,
     getIce: async () => (await this.client?.requestIce()) ?? [],
     send: (env, persistent) => {
-      if (persistent) this.client?.send(env, 'c' + this.newId());
+      if (persistent && env.k === 'call' && env.op === 'offer') this.client?.sendUrgent(env);
+      else if (persistent) this.client?.send(env, 'c' + this.newId());
       else this.client?.sendEphemeral(env);
     },
   });

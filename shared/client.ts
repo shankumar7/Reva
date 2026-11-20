@@ -285,6 +285,14 @@ export class RevaClient {
     this.flush();
   }
 
+  /** A call offer: goes out now (never waits in the queue) and wakes the other phone even if it is asleep. */
+  sendUrgent(env: Envelope): boolean {
+    if (!this.ready || !this.peer) return false;
+    const blob = this.o.crypto.seal(this.o.identity, this.peer, env);
+    this.raw({ t: 'send', cid: 'u' + Math.random().toString(36).slice(2), blob, urgent: true });
+    return true;
+  }
+
   /** Typing indicators: only delivered if the other phone is online right now. Never queued. */
   sendEphemeral(env: Envelope) {
     if (!this.ready || !this.peer || !this.peerOnline) return;

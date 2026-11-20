@@ -153,7 +153,7 @@ export function SettingsScreen({
       <Section icon="eye" title="App icon and name" i={1}>
         <Row label="Use a disguise (needs a code to open)" value={settings.cover} onChange={(v) => {
           if (v) set({ cover: true });
-          else Alert.alert('Turn the disguise off?', 'The app will open straight into your chat with no code, and show as a plain "Chat" icon. Anyone holding your unlocked phone can open it.', [
+          else Alert.alert('Turn the disguise off?', 'The app will open straight into your chat with no code, and show as "Reva" with its own icon. Anyone holding your unlocked phone can open it.', [
             { text: 'Keep the disguise', style: 'cancel' }, { text: 'Turn it off', style: 'destructive', onPress: () => set({ cover: false }) },
           ]);
         }} />

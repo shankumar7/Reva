@@ -9,6 +9,7 @@ const TEXT: Record<string, { title: string; body: string }> = {
   calculator: { title: 'Calculator', body: 'Tap to open' },
   notes: { title: 'Notes', body: 'Reminder' },
   chat: { title: 'Chat', body: 'New message' },
+  alarm: { title: 'Alarm', body: 'Tap to open' }, // a call, dressed as an alarm
 };
 
 export class Fcm {

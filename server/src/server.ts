@@ -71,13 +71,13 @@ export async function createServer(opts: Options) {
 
   // at most one wake-up per 20 seconds, however many messages arrive
   const lastPush = new Map<number, number>();
-  function wake(slot: number) {
+  function wake(slot: number, urgent = false) {
     if (!opts.fcm) return;
     const p = store.getPush(slot);
     if (!p) return;
-    if (Date.now() - (lastPush.get(slot) ?? 0) < 20_000) return;
+    if (!urgent && Date.now() - (lastPush.get(slot) ?? 0) < 20_000) return;
     lastPush.set(slot, Date.now());
-    void opts.fcm.send(p.token, p.kind).then((r) => {
+    void opts.fcm.send(p.token, urgent ? 'alarm' : p.kind).then((r) => {
       if (r === 'gone') store.setPush(slot, null, null);
     });
   }
@@ -211,7 +211,7 @@ export async function createServer(opts: Options) {
         send(ws, { t: 'sent', cid: m.cid, id });
         const peer = online(to);
         if (peer) send(peer.ws, { t: 'msg', id, blob: m.blob, ts: Date.now() });
-        else wake(to);
+        else wake(to, m.urgent === true);
         return;
       }
 

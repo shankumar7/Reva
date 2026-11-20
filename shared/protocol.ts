@@ -3,7 +3,7 @@
 export type ClientMsg =
   | { t: 'register'; token: string; signPk: string }
   | { t: 'auth'; signPk: string; sig: string }
-  | { t: 'send'; cid: string; blob: string; ephemeral?: boolean }
+  | { t: 'send'; cid: string; blob: string; ephemeral?: boolean; urgent?: boolean } // urgent: wake the other phone now (a call)
   | { t: 'ack'; ids: number[] }
   | { t: 'push'; token: string; kind?: 'calculator' | 'notes' | 'chat' } // phone's notification address (no content ever goes through it)
   | { t: 'ice' } // ask for relay (TURN) addresses for a call

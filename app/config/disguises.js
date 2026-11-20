@@ -9,17 +9,28 @@ const rect = (x, y, w, h, r = 0) =>
     : `M${x} ${y}h${w}v${h}h-${w}z`;
 const circle = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 -${2 * r} 0z`;
 
+// The Reva icon: two soft chat bubbles and a heart, built from flat shapes so it looks puffy ("clay") on any launcher.
+const REVA_BG = '#4A38B5';
+const REVA_GLYPH = [
+  { d: 'M64 42l15 14l2 -16z', fill: '#B7A4FF' }, // tail of the second bubble
+  { d: rect(48, 24, 34, 26, 11), fill: '#B7A4FF' }, // the second bubble, behind
+  { d: rect(29, 43, 46, 34, 15), fill: '#2F2190' }, // soft shadow under the front bubble
+  { d: 'M33 64l-5 20l20 -12z', fill: '#2F2190' }, // ... and under its tail
+  { d: 'M33 62l-6 22l22 -13z', fill: '#FFF2DF' }, // tail of the front bubble
+  { d: rect(26, 40, 46, 34, 15), fill: '#FFF2DF' }, // front bubble
+  { d: rect(32, 44, 12, 4, 2), fill: '#FFFFFF' }, // shine
+  { d: 'M49 67c-9 -6 -11 -10 -11 -13.5a5.6 5.6 0 0 1 11 -2a5.6 5.6 0 0 1 11 2c0 3.5 -2 7.5 -11 13.5z', fill: '#FF6B7F' }, // heart
+  { d: circle(44.2, 55.2, 1.7), fill: '#FFB5BF' }, // shine on the heart
+];
+
 const keys = [];
 for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) keys.push(rect(30 + col * 18, 49 + row * 12, 12, 8, 2.5));
 
 module.exports = [
   {
     // What the launcher shows when the app is first installed. After setup it switches to the chosen disguise.
-    id: 'Reva', label: 'Reva', kind: 'chat', bg: '#26262B',
-    glyph: [
-      { d: circle(46, 56, 20), fill: '#F7C948' },
-      { d: circle(64, 52, 20), stroke: '#9C88C9', strokeWidth: 6 },
-    ],
+    id: 'Reva', label: 'Reva', kind: 'chat', bg: REVA_BG,
+    glyph: REVA_GLYPH,
   },
   {
     id: 'Calculator', label: 'Calculator', kind: 'calculator', bg: '#2B3445',
@@ -79,12 +90,8 @@ module.exports = [
     ],
   },
   {
-    // Used when "cover" is switched off: an honest chat app icon. Not shown in the disguise picker.
-    id: 'Chat', label: 'Chat', kind: 'chat', bg: '#7C5CD6',
-    glyph: [
-      { d: rect(28, 30, 52, 36, 12), fill: '#FFFFFF' },
-      { d: 'M40 66l-4 14l16 -14z', fill: '#FFFFFF' },
-      { d: circle(44, 48, 3.2) + circle(54, 48, 3.2) + circle(64, 48, 3.2), fill: '#7C5CD6' },
-    ],
+    // Used when "cover" is switched off: the same Reva name and icon as the first install. Not shown in the disguise picker.
+    id: 'Chat', label: 'Reva', kind: 'chat', bg: REVA_BG,
+    glyph: REVA_GLYPH,
   },
 ];

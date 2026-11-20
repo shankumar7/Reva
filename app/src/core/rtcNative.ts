@@ -52,5 +52,5 @@ export const nativeRtc: RtcDeps = {
   },
 
   setSpeaker: (on) => Disguise.setSpeaker(on),
-  audioSession: (on) => Disguise.setCallAudio(on),
+  audioSession: (on) => { Disguise.setCallAudio(on); Disguise.callService(on); },
 };

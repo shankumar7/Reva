@@ -82,9 +82,15 @@ export default function App() {
 
   // screenshots and screen recording are blocked, and the recents thumbnail is blank, while anything private is open
   const secret = mode === 'chat' || mode === 'decoy' || mode === 'settings' || mode === 'setup' || mode === 'notes' || mode === 'starred' || mode === 'import' || mode === 'days' || mode === 'photos';
+  // Screenshots are allowed (you can share your pairing code that way). Only view-once pictures block them.
+  // What stays hidden is the preview picture in Android's recent-apps list.
   useEffect(() => {
-    if (secret) void ScreenCapture.preventScreenCaptureAsync('private').catch(() => {});
-    else void ScreenCapture.allowScreenCaptureAsync('private').catch(() => {});
+    Disguise.hideRecents(secret);
+    if (!secret) return;
+    // older Android versions cannot hide just the preview, so the window is shielded while the app is not in front
+    const off = AppState.addEventListener('blur', () => { void ScreenCapture.preventScreenCaptureAsync('recents').catch(() => {}); });
+    const on = AppState.addEventListener('focus', () => { void ScreenCapture.allowScreenCaptureAsync('recents').catch(() => {}); });
+    return () => { off.remove(); on.remove(); void ScreenCapture.allowScreenCaptureAsync('recents').catch(() => {}); };
   }, [secret]);
 
   // lock when the app goes to the background
@@ -109,6 +115,18 @@ export default function App() {
     session.viewing = false;
     setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import', 'days', 'photos'].includes(m) ? 'disguise' : m));
   }
+
+  // a call kept the app from locking while it was out of sight: lock as soon as the call is over
+  const lockRef = useRef(lock);
+  lockRef.current = lock;
+  useEffect(() => {
+    let was = false;
+    return session.call.subscribe(() => {
+      const busy = session.call.busy;
+      if (was && !busy && AppState.currentState !== 'active') lockRef.current();
+      was = busy;
+    });
+  }, []);
 
   // the phone's back button goes back one screen instead of closing the app
   useEffect(() => {

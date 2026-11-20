@@ -8,9 +8,21 @@ import { Icon } from '../ui/Icon';
 import { fonts, useTheme } from '../theme';
 import { session } from '../core/session';
 import { dataUri } from '../core/images';
+import { useBackHandler } from '../core/backStack';
+import * as ScreenCapture from 'expo-screen-capture';
 
 /** Full-screen picture: pinch to zoom, drag when zoomed, double-tap to zoom in or out. */
+/** A view-once picture cannot be screenshotted or screen-recorded while it is open. Everything else can. */
+function useOnceGuard(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    void ScreenCapture.preventScreenCaptureAsync('once').catch(() => {});
+    return () => { void ScreenCapture.allowScreenCaptureAsync('once').catch(() => {}); };
+  }, [on]);
+}
+
 export function ImageViewer({ id, once, mine, onClose }: { id: string | null; once: boolean; mine: boolean; onClose: () => void }) {
+  useOnceGuard(!!id && once);
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -82,9 +94,13 @@ export function ImageViewer({ id, once, mine, onClose }: { id: string | null; on
     setNote(ok ? 'Saved to your gallery.' : 'Could not save. Your phone may not allow it.');
   }
 
+  // a view-once picture is drawn inside the app's own window (a pop-up window could not be shielded from screenshots)
+  useBackHandler(!!id && once, close, 3);
   if (!id) return null;
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={close} statusBarTranslucent>
+  const wrap = (children: React.ReactNode) => once
+    ? <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 99, elevation: 99 }}>{children}</View>
+    : <Modal visible transparent animationType="fade" onRequestClose={close} statusBarTranslucent>{children}</Modal>;
+  return wrap(
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           {uri ? (
@@ -114,9 +130,8 @@ export function ImageViewer({ id, once, mine, onClose }: { id: string | null; on
         </View>
         <View pointerEvents="none" style={{ position: 'absolute', top: ins.top + 18, left: 20, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <Icon name="lock" color="#fff" size={16} />
-          <Text style={{ color: '#fff', opacity: 0.7, fontFamily: fonts.medium, fontSize: 12 }}>Private. Screenshots are blocked.</Text>
+          <Text style={{ color: '#fff', opacity: 0.7, fontFamily: fonts.medium, fontSize: 12 }}>{once ? 'View once. Screenshots are blocked here.' : 'Private to this chat.'}</Text>
         </View>
-      </GestureHandlerRootView>
-    </Modal>
+      </GestureHandlerRootView>,
   );
 }

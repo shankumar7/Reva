@@ -3,6 +3,7 @@ package expo.modules.disguise
 import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
+import androidx.core.content.ContextCompat
 import android.media.AudioManager
 import android.os.Build
 import android.os.Environment
@@ -44,6 +45,21 @@ class DisguiseModule : Module() {
         val s = pm.getComponentEnabledSetting(alias(it))
         s == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
       }
+    }
+
+    // Android 13 and newer: hide (or show again) this app's preview picture in the recent-apps list, without blocking screenshots.
+    Function("hideRecents") { hide: Boolean ->
+      if (Build.VERSION.SDK_INT >= 33) {
+        appContext.currentActivity?.runOnUiThread {
+          appContext.currentActivity?.setRecentsScreenshotEnabled(!hide)
+        }
+      }
+    }
+
+    // Keeps a call alive in the background (shows a plain "Timer" notification).
+    Function("callService") { on: Boolean ->
+      val i = Intent(ctx, CallService::class.java)
+      if (on) ContextCompat.startForegroundService(ctx, i) else ctx.stopService(i)
     }
 
     // Call sound: on = phone-call mode (echo cancelling, volume keys control the call), off = back to normal.

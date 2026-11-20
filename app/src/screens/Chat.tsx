@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  ActivityIndicator, Animated as RNAnimated, FlatList, Image, KeyboardAvoidingView, Linking, Modal, PanResponder, Pressable, Text, TextInput, View,
+  ActivityIndicator, Animated as RNAnimated, FlatList, Image, Keyboard, KeyboardAvoidingView, Linking, Modal, PanResponder, Pressable, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -29,7 +29,6 @@ import { daysTogether } from '../core/days';
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 const useChat = () => useSyncExternalStore(session.subscribe, session.getState);
-const tick = (m: Msg) => (m.state === 0 ? '○' : m.state === 1 ? '✓' : '✓✓');
 
 type Item = { t: 'day'; id: string; label: string } | { t: 'msg'; id: string; m: Msg; first: boolean; last: boolean };
 
@@ -114,6 +113,17 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
     [chat.messages, searchMode, found, clock],
   );
   const pinned = useMemo(() => [...chat.messages].reverse().find((m) => m.pinned && !m.deleted), [chat.messages]);
+  // the delivery status is shown once, under your newest message, instead of ticks on every bubble
+  const lastMineId = useMemo(() => [...chat.messages].reverse().find((m) => m.mine && !m.deleted)?.id, [chat.messages]);
+
+  // with the keyboard up the composer sits right on it; with it down it clears the phone's bottom bar
+  const [kb, setKb] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener('keyboardDidShow', () => setKb(true));
+    const b = Keyboard.addListener('keyboardDidHide', () => setKb(false));
+    return () => { a.remove(); b.remove(); };
+  }, []);
+  const bottomPad = kb ? 8 : ins.bottom + 10;
 
   useEffect(() => {
     if (recStart === null) return;
@@ -289,7 +299,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
                 <Clay radius={12} depth={0.4} style={{ paddingHorizontal: 12, paddingVertical: 4 }}><Label>{item.label}</Label></Clay>
               </View>
             ) : (
-              <Bubble m={item.m} first={item.first} last={item.last} flash={flash === item.id} quoted={item.m.replyTo ? byId.get(item.m.replyTo) : undefined}
+              <Bubble m={item.m} first={item.first} last={item.last} status={!searchMode && item.id === lastMineId} flash={flash === item.id} quoted={item.m.replyTo ? byId.get(item.m.replyTo) : undefined}
                 onReply={() => setReplyTo(item.m)} onMenu={() => setMenu(item.m)} onOpen={() => setViewer(item.m)} onQuote={() => item.m.replyTo && jumpTo(item.m.replyTo)} />
             )
           }
@@ -297,7 +307,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
       )}
 
       {showJump && !searchMode && (
-        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={{ position: 'absolute', right: 18, bottom: ins.bottom + 150 }}>
+        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={{ position: 'absolute', right: 18, bottom: bottomPad + 140 }}>
           <ClayPress onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })} radius={20} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }} label="Jump to the latest message">
             <Icon name="down" size={20} color={t.accent} />
           </ClayPress>
@@ -318,7 +328,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
       )}
 
       {recStart !== null ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: ins.bottom + 10, paddingTop: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: bottomPad, paddingTop: 4 }}>
           <ClayPress onPress={() => void stopRec(false)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Cancel recording">
             <Icon name="trash" size={22} color={t.danger} />
           </ClayPress>
@@ -332,7 +342,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
           </ClayPress>
         </View>
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingBottom: ins.bottom + 10, paddingTop: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingBottom: bottomPad, paddingTop: 4 }}>
           <ClayPress onPress={() => setAttach(true)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Add a picture" disabled={sending}>
             {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={24} />}
           </ClayPress>
@@ -482,8 +492,8 @@ function TypingDots() {
   );
 }
 
-function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuote }: {
-  m: Msg; first: boolean; last: boolean; quoted?: Msg; flash?: boolean; onReply: () => void; onMenu: () => void; onOpen: () => void; onQuote: () => void;
+function Bubble({ m, first, last, status, quoted, flash, onReply, onMenu, onOpen, onQuote }: {
+  m: Msg; first: boolean; last: boolean; status?: boolean; quoted?: Msg; flash?: boolean; onReply: () => void; onMenu: () => void; onOpen: () => void; onQuote: () => void;
 }) {
   const t = useTheme();
   const x = useRef(new RNAnimated.Value(0)).current;
@@ -512,8 +522,6 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
   const bg = isStk ? stickerTint(t, m.text) : mine ? t.bubbleMine : t.bubbleTheirs;
   const fg = isStk ? t.text : mine ? t.onMine : t.onTheirs;
   const time = new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  // the "read" ticks must stand out on any bubble colour
-  const readTick = contrast(t.accent, bg) >= 3 ? t.accent : luminance(bg) < 0.35 ? '#8DF5C8' : '#0B6B4C';
   const isImg = m.kind === 'img';
   const ratio = m.w && m.h ? m.w / m.h : 1;
   const iw = ratio >= 1 ? 240 : Math.max(150, 240 * ratio), ih = Math.min(320, iw / ratio);
@@ -539,7 +547,6 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
           {!m.text && (
             <View style={{ position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
               <Text style={{ color: '#FFFFFF', fontSize: 10, fontFamily: fonts.medium }}>{time}</Text>
-              {mine && <Text style={{ color: m.state === 3 ? '#8DF5C8' : '#FFFFFF', fontSize: 11, fontFamily: fonts.bold }}>{tick(m)}</Text>}
             </View>
           )}
         </View>
@@ -562,7 +569,7 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
               </Pressable>
             )}
             {m.deleted ? (
-              <Text style={{ color: fg, opacity: 0.6, fontFamily: fonts.body, fontStyle: 'italic', fontSize: 15 }}>Message deleted</Text>
+              <Text style={{ color: fg, opacity: 0.6, fontFamily: fonts.body, fontStyle: 'italic', fontSize: 15, paddingRight: 4 }}>Message deleted</Text>
             ) : isStk ? (
               <View style={{ alignItems: 'center', paddingVertical: 8, minWidth: 128 }}>
                 <Text style={{ fontSize: 62, lineHeight: 74 }}>{stk?.emoji ?? '❔'}</Text>
@@ -578,9 +585,6 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
                 {m.starred && <Icon name="star" size={10} color={fg} />}
                 {m.exp > 0 && <Icon name="timer" size={10} color={fg} />}
                 <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>
-                {mine && !m.deleted && (
-                  <Text style={{ color: m.state === 3 ? readTick : fg, opacity: m.state === 3 ? 1 : 0.55, fontSize: 11, fontFamily: fonts.bold }}>{tick(m)}</Text>
-                )}
               </View>
             )}
           </Clay>
@@ -594,6 +598,20 @@ function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuot
         </Pressable>
       </RNAnimated.View>
       {(m.rMine || m.rTheirs) && <View style={{ height: 10 }} />}
+      {status && mine && <StatusLine state={m.state} />}
+    </Animated.View>
+  );
+}
+
+/** One quiet line under your newest message: Sending, Sent, Delivered or Seen. */
+function StatusLine({ state }: { state: number }) {
+  const t = useTheme();
+  const label = state === 0 ? 'Sending' : state === 1 ? 'Sent' : state === 2 ? 'Delivered' : 'Seen';
+  const seen = state >= 3;
+  return (
+    <Animated.View key={label} entering={FadeIn.duration(220)} style={{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5, marginRight: 6 }}>
+      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: seen ? t.accent : 'transparent', borderWidth: seen ? 0 : 1.5, borderColor: t.textDim, opacity: state === 0 ? 0.6 : 1 }} />
+      <Text style={{ color: seen ? t.accent : t.textDim, fontFamily: seen ? fonts.bold : fonts.medium, fontSize: 11, letterSpacing: 0.3 }}>{label}</Text>
     </Animated.View>
   );
 }
