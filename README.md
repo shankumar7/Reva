@@ -3,7 +3,7 @@
 A private, end-to-end encrypted chat for two people. On the phone it looks like an ordinary
 utility app (Calculator, Notes, and more). Reva's name never appears on the phone.
 
-> Private repository. Never commit keys, passwords, server addresses, pairing codes or `.env` files.
+
 
 ## How it works
 
