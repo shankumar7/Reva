@@ -4,6 +4,7 @@ import { getCrypto, rawSodium } from './sodium';
 
 export interface Settings {
   theme: string; // 'auto' | theme id
+  accent: string; // '' = the theme's own accent, or a #hex laid over any theme
   disguise: string; // disguise id
   notesUnlock: 'search' | 'title'; // how Notes opens the chat
   saveToGallery: boolean; // default for received pictures
@@ -16,7 +17,7 @@ export interface Settings {
 }
 
 export const defaultSettings: Settings = {
-  theme: 'auto', disguise: 'Calculator', notesUnlock: 'search', saveToGallery: false,
+  theme: 'auto', accent: '', disguise: 'Calculator', notesUnlock: 'search', saveToGallery: false,
   autoLockSeconds: 0, cover: true, lastBackup: 0, notifications: true, nickname: 'Us', disappear: 0,
 };
 

@@ -14,6 +14,7 @@ import { safetyNumber } from '../core/pairing';
 import { checkForUpdate, currentVersion, downloadAndInstall, type UpdateResult } from '../core/update';
 import { Codes } from './Setup';
 import { BackupScreen } from './Backup';
+import { ThemeGallery } from './ThemeGallery';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { session } from '../core/session';
@@ -50,7 +51,7 @@ export function SettingsScreen({
   const [upd, setUpd] = useState<UpdateResult | null>(null);
   const [updMsg, setUpdMsg] = useState('');
   const [checking, setChecking] = useState(false);
-  const [sub, setSub] = useState<'main' | 'codes' | 'backup'>('main');
+  const [sub, setSub] = useState<'main' | 'codes' | 'backup' | 'themes'>('main');
   const [shortName, setShortName] = useState('');
   const [shortIcon, setShortIcon] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -89,6 +90,7 @@ export function SettingsScreen({
     if (err) setUpdMsg(err);
   }
 
+  if (sub === 'themes') return <ThemeGallery theme={settings.theme} accent={settings.accent} onTheme={(id) => set({ theme: id })} onAccent={(a) => set({ accent: a })} onBack={() => setSub('main')} />;
   if (sub === 'backup') return <BackupScreen nickname={settings.nickname} settings={settings} onSettings={onChange} onBack={() => setSub('main')} />;
   if (sub === 'codes') {
     return (
@@ -109,20 +111,17 @@ export function SettingsScreen({
       </View>
       {note ? <Clay radius={16} style={{ padding: 12 }}><Body dim>{note}</Body></Clay> : null}
 
-      <Section title="Colours" i={0}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {[{ id: 'auto', name: 'Auto', swatch: [t.bg, t.accent2, t.accent] as [string, string, string] }, ...THEMES].map((th) => {
-            const on = settings.theme === th.id;
-            return (
-              <ClayPress key={th.id} onPress={() => set({ theme: th.id })} radius={20} style={{ padding: 12, width: '47%', borderWidth: on ? 2 : 0, borderColor: t.accent }} label={th.name}>
-                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-                  {th.swatch.map((c, i) => <View key={i} style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c, borderWidth: 1, borderColor: 'rgba(128,128,128,0.35)' }} />)}
-                </View>
-                <Text style={{ color: t.text, fontFamily: fonts.bold }}>{th.name}</Text>
-              </ClayPress>
-            );
-          })}
-        </View>
+      <Section title="Theme" i={0}>
+        <ClayPress onPress={() => setSub('themes')} radius={24} style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }} label="Open the theme gallery">
+          <View style={{ flexDirection: 'row' }}>
+            {t.swatch.map((c, i) => <View key={i} style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c, marginLeft: i ? -8 : 0, borderWidth: 2, borderColor: t.surface }} />)}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: t.text, fontFamily: fonts.bold, fontSize: 16 }}>{t.name}</Text>
+            <Text style={{ color: t.textDim, fontFamily: fonts.body, fontSize: 12 }}>Open the theme gallery</Text>
+          </View>
+          <Icon name="more" size={20} color={t.textDim} />
+        </ClayPress>
       </Section>
 
       <Section title="App icon and name" i={1}>

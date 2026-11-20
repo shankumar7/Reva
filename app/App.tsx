@@ -152,7 +152,7 @@ export default function App() {
     await Vault.saveSettings(s);
   }
 
-  const bg = resolveTheme(settings.theme, false).bg;
+  const bg = resolveTheme(settings.theme, false, settings.accent).bg;
   if (!fontsReady || mode === 'loading') return <View style={{ flex: 1, backgroundColor: bg }} />;
 
   const kind = disguises.find((d) => d.id === settings.disguise)?.kind === 'notes' ? 'notes' : 'calculator';
@@ -160,7 +160,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider choice={settings.theme}>
+        <ThemeProvider choice={settings.theme} accent={settings.accent}>
           <Inner>
             <Animated.View key={mode} entering={FadeIn.duration(220)} style={{ flex: 1 }}>
               {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} initialStep={setupStart} />}
