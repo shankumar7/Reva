@@ -12,7 +12,6 @@ services:
     mem_limit: 160m
     read_only: true
     tmpfs: [/tmp, /var/lib/coturn]
-    cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     logging:
       driver: json-file

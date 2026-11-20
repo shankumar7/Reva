@@ -1,7 +1,3 @@
-{
-	# no request logging that could contain addresses of people
-	servers {
-		log_credentials false
-	}
-}
+# The front door: HTTPS for every app on this server. Each app adds its own file in ./sites.
+# Caddy writes no request log unless asked to, so nothing about who connects is stored.
 import /etc/caddy/sites/*.caddy
