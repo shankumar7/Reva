@@ -13,7 +13,7 @@ const ROWS: string[][] = [
   ['0', '.', '='],
 ];
 
-export function Calculator({ tryUnlock }: { tryUnlock: (code: string) => Promise<boolean> }) {
+export function Calculator({ tryUnlock, onSecret }: { tryUnlock: (code: string) => Promise<boolean>; onSecret?: () => void }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -76,6 +76,8 @@ export function Calculator({ tryUnlock }: { tryUnlock: (code: string) => Promise
                 <ClayPress
                   key={k}
                   onPress={() => void press(k)}
+                  onLongPress={isEq && onSecret ? onSecret : undefined}
+                  holdMs={1500}
                   radius={size / 2.6}
                   color={isEq ? t.accent : isOp ? t.accent2 : t.surface}
                   style={{ width: wide ? size * 2 + gap : size, height: size * 0.82, alignItems: 'center', justifyContent: 'center' }}

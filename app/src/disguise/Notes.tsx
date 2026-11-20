@@ -17,7 +17,7 @@ async function notesDb() {
   return ndb;
 }
 
-export function Notes({ tryUnlock, titleUnlock }: { tryUnlock: (code: string) => Promise<boolean>; titleUnlock: boolean }) {
+export function Notes({ tryUnlock, titleUnlock, onSecret }: { tryUnlock: (code: string) => Promise<boolean>; titleUnlock: boolean; onSecret?: () => void }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -66,6 +66,7 @@ export function Notes({ tryUnlock, titleUnlock }: { tryUnlock: (code: string) =>
             returnKeyType="search"
             onSubmitEditing={async () => {
               const v = q.trim();
+              if (onSecret && v === '::setup') { setQ(''); onSecret(); return; }
               if (v.length >= 4 && (await tryUnlock(v))) setQ('');
             }}
             style={{ flex: 1, paddingVertical: 14, color: t.text, fontFamily: fonts.body, fontSize: 16 }}

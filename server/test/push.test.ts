@@ -70,3 +70,24 @@ test('push: a wake-up is sent when the other phone is offline, with no message c
   await srv.close();
   google.close();
 });
+
+test('push: a phone can switch its notifications off (used by the wipe)', async () => {
+  const ctx = await setup();
+  const { a, b } = await (async () => {
+    const x = ctx.c.newIdentity(), y = ctx.c.newIdentity();
+    await registerDevice(ctx.url, TOKEN, ctx.c.b64(x.signPk));
+    await registerDevice(ctx.url, TOKEN, ctx.c.b64(y.signPk));
+    return { a: x, b: y };
+  })();
+  const B = new RevaClient({ url: ctx.url, identity: b, crypto: ctx.c, peer: ctx.c.peerFromSignPk(a.signPk), store: new MemoryStore() });
+  B.connect();
+  await until(() => B.status === 'online');
+  B.setPush('t'.repeat(40), 'chat');
+  await wait(150);
+  assert.equal(ctx.srv.store.getPush(2)?.token, 't'.repeat(40));
+  B.clearPush();
+  await wait(150);
+  assert.equal(ctx.srv.store.getPush(2), null);
+  B.disconnect();
+  await ctx.srv.close();
+});

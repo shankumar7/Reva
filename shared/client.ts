@@ -77,6 +77,12 @@ export class RevaClient {
     if (this.ready) this.raw({ t: 'push', token, kind });
   }
 
+  /** Tell the server to stop sending this phone notifications (used before a wipe). */
+  clearPush() {
+    this.push = null;
+    this.raw({ t: 'push', token: '' });
+  }
+
   setPeer(p: PeerKeys) {
     this.peer = p;
   }

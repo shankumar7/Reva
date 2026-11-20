@@ -135,6 +135,8 @@ class Session {
 
   /** Erase everything on this phone. */
   async panic() {
+    this.client?.clearPush();
+    await new Promise((r) => setTimeout(r, 400)); // let the message leave
     this.stop();
     await wipeDb();
     await Images.wipeAll();

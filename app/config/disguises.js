@@ -14,6 +14,14 @@ for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) keys.push(re
 
 module.exports = [
   {
+    // What the launcher shows when the app is first installed. After setup it switches to the chosen disguise.
+    id: 'Reva', label: 'Reva', kind: 'chat', bg: '#26262B',
+    glyph: [
+      { d: circle(46, 56, 20), fill: '#F7C948' },
+      { d: circle(64, 52, 20), stroke: '#9C88C9', strokeWidth: 6 },
+    ],
+  },
+  {
     id: 'Calculator', label: 'Calculator', kind: 'calculator', bg: '#2B3445',
     glyph: [
       { d: rect(30, 26, 48, 16, 4), fill: '#9FE3D0' },

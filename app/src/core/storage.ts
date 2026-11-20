@@ -35,6 +35,7 @@ export interface Codes {
   panic?: string;
 }
 
+const WIPED = 'k_wiped'; // kept on purpose when everything else is erased
 const K = { seed: 'k_seed', dbkey: 'k_db', settings: 'k_settings', pairing: 'k_pairing', codes: 'k_codes' };
 const opt = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
@@ -64,6 +65,21 @@ export const Vault = {
     const id = c.newIdentity();
     await SecureStore.setItemAsync(K.seed, c.b64(id.seed), opt);
     return id.seed;
+  },
+
+  /** After a wipe the app must look like a plain calculator, not like a fresh install of this app. */
+  async markWiped() {
+    await SecureStore.setItemAsync(WIPED, '1', opt);
+  },
+  async wasWiped() {
+    return (await SecureStore.getItemAsync(WIPED).catch(() => null)) === '1';
+  },
+  async clearWiped() {
+    await SecureStore.deleteItemAsync(WIPED).catch(() => {});
+  },
+  /** Forget the server and partner (messages stay). Used when the server was reset. */
+  async clearPairing() {
+    await SecureStore.deleteItemAsync(K.pairing).catch(() => {});
   },
 
   async setSeed(seed: Uint8Array) {

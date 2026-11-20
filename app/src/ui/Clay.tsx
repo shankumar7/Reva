@@ -1,7 +1,8 @@
 // Claymorphism building blocks: soft, puffy surfaces with a light edge on one side and a soft shadow on the other.
 import React from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle, AccessibilityInfo } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { EASE } from './motion';
 import * as Haptics from 'expo-haptics';
 import { fonts, useTheme } from '../theme';
 
@@ -26,10 +27,10 @@ export function Clay({
 
 /** A pressable clay surface that squishes when touched. */
 export function ClayPress({
-  children, onPress, onLongPress, style, radius = 24, color, disabled, depth = 1, haptic = true, label,
+  children, onPress, onLongPress, style, radius = 24, color, disabled, depth = 1, haptic = true, label, holdMs,
 }: {
   children?: React.ReactNode; onPress?: () => void; onLongPress?: () => void; style?: StyleProp<ViewStyle>;
-  radius?: number; color?: string; disabled?: boolean; depth?: number; haptic?: boolean; label?: string;
+  radius?: number; color?: string; disabled?: boolean; depth?: number; haptic?: boolean; label?: string; holdMs?: number;
 }) {
   const t = useTheme();
   const s = useSharedValue(1);
@@ -42,13 +43,14 @@ export function ClayPress({
       accessibilityLabel={label}
       disabled={disabled}
       style={outer}
-      onPressIn={() => (s.value = withTiming(0.96, { duration: 90 }))}
-      onPressOut={() => (s.value = withSpring(1, { damping: 14, stiffness: 260 }))}
+      onPressIn={() => (s.value = withTiming(0.97, { duration: 90, easing: EASE }))}
+      onPressOut={() => (s.value = withTiming(1, { duration: 140, easing: EASE }))}
       onPress={() => {
         if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress?.();
       }}
       onLongPress={onLongPress}
+      delayLongPress={holdMs}
     >
       <Animated.View
         style={[
@@ -109,7 +111,7 @@ export function Switch({ value, onChange }: { value: boolean; onChange: (v: bool
   const t = useTheme();
   const x = useSharedValue(value ? 1 : 0);
   React.useEffect(() => {
-    x.value = withSpring(value ? 1 : 0, { damping: 16, stiffness: 240 });
+    x.value = withTiming(value ? 1 : 0, { duration: 180, easing: EASE });
   }, [value, x]);
   const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * 22 }] }));
   return (

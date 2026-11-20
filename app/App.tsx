@@ -39,6 +39,7 @@ export default function App() {
   const leftAt = useRef(0);
 
   const [bootError, setBootError] = useState('');
+  const [isReady, setIsReady] = useState(false); // paired, with codes: the app is set up
   const [setupStart, setSetupStart] = useState<'codes' | undefined>(undefined);
   const boot = useCallback(async () => {
     try {
@@ -47,18 +48,29 @@ export default function App() {
       setSettings(s);
       codes.current = c;
       const ready = !!p?.peerSignPk && !!c.calc;
-      if (!ready) {
-        setSetupStart(p?.peerSignPk ? 'codes' : undefined); // paired or restored, but no codes yet
-        return setMode('setup'); // new, or a half-finished setup: continue it
+      setIsReady(ready);
+      if (ready) {
+        await Vault.clearWiped();
+        setMode(s.cover ? 'disguise' : 'chat'); // no cover: straight into the chat
+        // connecting must never block opening the app
+        session.start().catch(() => {});
+        return;
       }
-      setMode(s.cover ? 'disguise' : 'chat'); // no cover: straight into the chat
-      // connecting must never block opening the app
-      session.start().catch(() => {});
+      if (p?.peerSignPk) { // paired or restored, but no codes yet: finish that
+        setSetupStart('codes');
+        return setMode('setup');
+      }
+      // Nothing set up. A fresh install goes straight to setup. After a wipe the app must look like a plain
+      // calculator, so setup is only reachable by a hidden gesture (hold the = key).
+      if (await Vault.wasWiped()) return setMode('disguise');
+      setSetupStart(undefined);
+      setMode('setup');
     } catch (e) {
       setBootError(e instanceof Error ? e.message : String(e));
       setMode('setup');
     }
   }, []);
+
   useEffect(() => { void boot(); }, [boot]);
 
   // screenshots and screen recording are blocked, and the recents thumbnail is blank, while anything private is open
@@ -100,12 +112,12 @@ export default function App() {
 
   // keep the real launcher entry in step with the chosen disguise
   useEffect(() => {
-    if (mode !== 'loading' && mode !== 'setup' && Disguise.available) {
+    if (isReady && mode !== 'loading' && mode !== 'setup' && Disguise.available) {
       const ids = disguises.map((d) => d.id);
       const want = settings.cover ? settings.disguise : 'Chat';
       if (Disguise.currentAlias(ids) !== want) Disguise.setAlias(want, ids);
     }
-  }, [mode, settings.disguise, settings.cover]);
+  }, [isReady, mode, settings.disguise, settings.cover]);
 
   async function tryUnlock(code: string, kind: 'calc' | 'notes'): Promise<boolean> {
     try {
@@ -132,7 +144,10 @@ export default function App() {
   async function doPanic() {
     await session.panic();
     await wipeDb();
+    await Vault.markWiped();
     codes.current = {};
+    setIsReady(false);
+    if (Disguise.available) Disguise.setAlias(defaultSettings.disguise, disguises.map((d) => d.id));
     setSettings(defaultSettings);
     setMode('disguise'); // after a wipe the app looks like a calculator again
   }
@@ -163,10 +178,10 @@ export default function App() {
         <ThemeProvider choice={settings.theme} accent={settings.accent}>
           <Inner>
             <Animated.View key={mode} entering={FadeIn.duration(220)} style={{ flex: 1 }}>
-              {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} initialStep={setupStart} />}
+              {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} initialStep={setupStart} onExit={isReady ? undefined : () => setMode('disguise')} />}
               {mode === 'disguise' && (kind === 'calculator'
-                ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} />
-                : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} />)}
+                ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} onSecret={isReady ? undefined : () => { setSetupStart(undefined); setMode('setup'); }} />
+                : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} onSecret={isReady ? undefined : () => { setSetupStart(undefined); setMode('setup'); }} />)}
               {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} onStarred={() => setMode('starred')} onImport={() => setMode('import')} />}
               {mode === 'starred' && <StarredScreen nickname={settings.nickname} onBack={() => setMode('chat')} />}
               {mode === 'import' && <ImportWhatsApp onBack={() => setMode('chat')} />}
