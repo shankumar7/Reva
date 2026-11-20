@@ -175,3 +175,17 @@ test('real export: lowercase pm after a narrow no-break space, empty system line
   assert.equal(new Date(r.messages[0].ts).getHours(), 18);
   assert.equal(r.dateOrder, 'dmy');
 });
+
+test('real export with media: file with spaces, photo with a long caption, empty message', () => {
+  const r = parseWhatsApp([
+    '23/11/2025, 3:17 pm - Ravi: TT SEM-01 wef 13102025.pdf (file attached)',
+    '30/03/2026, 2:35 pm - Shan: IMG-20260327-WA0019.jpg (file attached)',
+    'caption line 1',
+    '',
+    '📞 Contact: 9876501234',
+    '31/03/2026, 6:01 pm - Shan: ok',
+  ].join('\n'));
+  assert.equal(r.messages[0].attachment, 'TT SEM-01 wef 13102025.pdf');
+  assert.equal(r.messages[1].attachment, 'IMG-20260327-WA0019.jpg');
+  assert.equal(r.messages[1].text, 'caption line 1\n\n📞 Contact: 9876501234');
+});
