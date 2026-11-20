@@ -18,6 +18,7 @@ import { ThemeGallery } from './ThemeGallery';
 import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { session } from '../core/session';
+import { whileSystemUi } from '../core/lockGuard';
 
 export function DisguiseIcon({ id, size = 56 }: { id: string; size?: number }) {
   const d = disguises.find((x) => x.id === id) ?? disguises[0];
@@ -43,8 +44,8 @@ function Section({ title, children, i }: { title: string; children: React.ReactN
 }
 
 export function SettingsScreen({
-  settings, onChange, onBack, onLock, onPanic,
-}: { settings: S; onChange: (s: S) => void; onBack: () => void; onLock: () => void; onPanic: () => void }) {
+  settings, onChange, onBack, onLock, onPanic, onRestored, onRepair,
+}: { settings: S; onChange: (s: S) => void; onBack: () => void; onLock: () => void; onPanic: () => void; onRestored?: () => void; onRepair?: () => void }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const [safety, setSafety] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function SettingsScreen({
   }
 
   async function pickShortcutIcon() {
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 });
+    const r = await whileSystemUi(() => ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 }));
     if (r.canceled || !r.assets[0]) return;
     const m = await manipulateAsync(r.assets[0].uri, [{ resize: { width: 192, height: 192 } }], { format: SaveFormat.PNG, base64: true });
     setShortIcon(m.base64 ?? null);
@@ -76,7 +77,7 @@ export function SettingsScreen({
 
   async function addShortcut() {
     if (!shortName.trim()) return setNote('Type the name you want first.');
-    const ok = await Disguise.pinShortcut(shortName.trim(), shortIcon);
+    const ok = await whileSystemUi(() => Disguise.pinShortcut(shortName.trim(), shortIcon));
     setNote(ok ? 'Your phone will ask to add it to the home screen.' : 'This phone or launcher cannot add home-screen shortcuts.');
   }
 
@@ -86,12 +87,12 @@ export function SettingsScreen({
     setUpd(r); setChecking(false);
   }
   async function onInstall() {
-    const err = await downloadAndInstall(setUpdMsg);
+    const err = await whileSystemUi(() => downloadAndInstall(setUpdMsg));
     if (err) setUpdMsg(err);
   }
 
   if (sub === 'themes') return <ThemeGallery theme={settings.theme} accent={settings.accent} onTheme={(id) => set({ theme: id })} onAccent={(a) => set({ accent: a })} onBack={() => setSub('main')} />;
-  if (sub === 'backup') return <BackupScreen nickname={settings.nickname} settings={settings} onSettings={onChange} onBack={() => setSub('main')} />;
+  if (sub === 'backup') return <BackupScreen nickname={settings.nickname} settings={settings} onSettings={onChange} onBack={() => setSub('main')} onRestored={onRestored} />;
   if (sub === 'codes') {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 20, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
@@ -179,7 +180,7 @@ export function SettingsScreen({
           })}
         </View>
         <Body dim>Applies to messages you send from now on. Ask your partner to set the same on their phone.</Body>
-        <Row label="Notifications (a plain 'something new', never any content)" value={settings.notifications} onChange={(v) => set({ notifications: v })} />
+        <Row label="Notifications (a plain 'something new', never any content)" value={settings.notifications} onChange={(v) => { set({ notifications: v }); if (!v) session.disablePush(); }} />
         <Body dim>{{ on: 'Notifications are on.', denied: 'Android has notifications blocked for this app. Allow them in Android settings.', unavailable: 'Notifications are not set up on this build yet.', unknown: 'Opens on the next unlock.' }[session.getState().push]}</Body>
         <Row label="Lock the moment you leave the app" value={settings.autoLockSeconds === 0} onChange={(v) => set({ autoLockSeconds: v ? 0 : 30 })} />
       </Section>
@@ -192,8 +193,14 @@ export function SettingsScreen({
           <Body dim style={{ marginTop: 6 }}>You and your partner should see the same number. If it differs, someone has tampered with the pairing.</Body>
         </Clay>
         <Button title="Lock now" kind="plain" onPress={onLock} />
+        {onRepair && (
+          <Button title="Pair with the server again" kind="plain" onPress={() =>
+            Alert.alert('Pair again?', 'Use this only if the server was reset. Your messages on this phone stay. You and your partner scan the codes again.', [
+              { text: 'Cancel', style: 'cancel' }, { text: 'Pair again', onPress: onRepair },
+            ])} />
+        )}
         <Button title="Erase everything on this phone" kind="danger" onPress={() =>
-          Alert.alert('Erase this phone?', 'All messages and keys on this phone are deleted for good. Your partner keeps their copy.', [
+          Alert.alert('Erase this phone?', 'All messages and keys on this phone are deleted for good. Your partner keeps their copy. Without a backup you will need to reset the pairing on the server to use this phone again.', [
             { text: 'Cancel', style: 'cancel' }, { text: 'Erase', style: 'destructive', onPress: onPanic },
           ])} />
       </Section>

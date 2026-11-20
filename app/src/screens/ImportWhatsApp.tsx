@@ -10,6 +10,7 @@ import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import { parseWhatsApp, IMAGE_EXT, type WaParse } from '../core/whatsapp';
 import { session } from '../core/session';
+import { whileSystemUi } from '../core/lockGuard';
 
 type Loaded = { raw: string; zip: JSZip | null; name: string };
 
@@ -34,7 +35,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
   async function choose() {
     setErr(''); setDone(null);
     try {
-      const r = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      const r = await whileSystemUi(() => DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true }));
       if (r.canceled || !r.assets[0]) return;
       const a = r.assets[0];
       setBusy('Reading the file…');
@@ -63,6 +64,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
 
   async function run() {
     if (!parsed || !loaded) return;
+    if (!session.getState().ready) return setErr('The chat is still starting. Wait a moment and try again.');
     setErr(''); setBusy('Importing…'); setProgress([0, parsed.messages.length]);
     try {
       const r = await session.importWhatsApp(parsed.messages, me, loaded.zip, { photos, share, sharePhotos: share && sharePhotos }, (d, tot, ph) => { setProgress([d, tot]); setPhase(ph); });

@@ -16,6 +16,7 @@ export interface Prepared { data: string; thumb: string; w: number; h: number }
 
 /** Shrinks a picture (long side 1280) and makes a small preview. Re-encoding also removes camera location data. */
 export async function prepare(uri: string, width: number): Promise<Prepared> {
+  if (!width) width = (await manipulateAsync(uri, [], {})).width; // size not known: look at the picture, never enlarge a small one
   const big = await manipulateAsync(uri, width > 1280 ? [{ resize: { width: 1280 } }] : [], { compress: 0.72, format: SaveFormat.JPEG, base64: true });
   const small = await manipulateAsync(uri, [{ resize: { width: 320 } }], { compress: 0.5, format: SaveFormat.JPEG, base64: true });
   return { data: big.base64 ?? '', thumb: small.base64 ?? '', w: big.width, h: big.height };

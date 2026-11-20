@@ -32,7 +32,7 @@ export interface ClientEvents {
   onStatus?(s: Status): void;
   onPeerOnline?(on: boolean): void;
   /** A decrypted envelope from the other person. */
-  onEnvelope?(env: Envelope, serverId: number, ts: number): void;
+  onEnvelope?(env: Envelope, serverId: number, ts: number): void | Promise<void>;
   /** Our message left the outbox and reached the server. */
   onSent?(cid: string): void;
   onError?(code: string): void;
@@ -55,7 +55,7 @@ export class RevaClient {
   private ws: WebSocket | null = null;
   private store: ClientStore;
   private outbox: OutboxItem[];
-  private inflight = new Set<string>();
+  private inflight = new Map<string, number>(); // cid -> when it was sent, so a lost reply cannot block the queue
   private wantOpen = false;
   private ready = false;
   private retry = 0;
@@ -228,8 +228,11 @@ export class RevaClient {
           if (m.id) this.raw({ t: 'ack', ids: [m.id] });
           break;
         }
-        this.o.events?.onEnvelope?.(env, m.id, m.ts);
-        if (m.id) this.raw({ t: 'ack', ids: [m.id] });
+        // acknowledge only once the app has saved it, so a crash in between cannot lose a message
+        const id = m.id;
+        void Promise.resolve(this.o.events?.onEnvelope?.(env, id, m.ts))
+          .then(() => { if (id) this.raw({ t: 'ack', ids: [id] }); })
+          .catch(() => { /* not acknowledged: the server will deliver it again on the next connect */ });
         break;
       }
       case 'error':
@@ -237,6 +240,9 @@ export class RevaClient {
           // the server dropped what was in flight: try those again in a moment
           this.inflight.clear();
           setTimeout(() => this.flush(), 1200);
+        } else if (m.code === 'no_peer' || m.code === 'bad_send') {
+          this.inflight.clear();
+          setTimeout(() => this.flush(), 5000);
         }
         this.o.events?.onError?.(m.code);
         break;
@@ -246,10 +252,12 @@ export class RevaClient {
   /** Sends queued messages a few at a time, so a big batch (an imported chat) never floods the server. */
   private flush() {
     if (!this.ready) return;
+    const now = Date.now();
+    for (const [cid, at] of this.inflight) if (now - at > 20_000) this.inflight.delete(cid); // no answer for 20 s: send it again
     for (const it of this.outbox) {
       if (this.inflight.size >= WINDOW) return;
       if (this.inflight.has(it.cid)) continue;
-      this.inflight.add(it.cid);
+      this.inflight.set(it.cid, now);
       this.raw({ t: 'send', cid: it.cid, blob: it.blob });
     }
   }

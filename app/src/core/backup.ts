@@ -7,6 +7,7 @@ import { pack, unpack } from './backupCrypto';
 import { Vault, type Settings } from './storage';
 import { Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
 import * as Images from './images';
+import { whileSystemUi } from './lockGuard';
 
 interface BackupData {
   v: 1;
@@ -60,7 +61,7 @@ export async function createBackup(
 /** Opens the phone's Share menu so the file can go to Google Drive. */
 export async function shareBackup(uri: string): Promise<boolean> {
   if (!(await Sharing.isAvailableAsync())) return false;
-  await Sharing.shareAsync(uri, { mimeType: 'application/octet-stream', dialogTitle: 'Save your backup (choose Drive)' });
+  await whileSystemUi(() => Sharing.shareAsync(uri, { mimeType: 'application/octet-stream', dialogTitle: 'Save your backup (choose Drive)' }));
   return true;
 }
 

@@ -3,6 +3,7 @@ import { Text, View, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions, scanFromURLAsync } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Body, Button, Clay } from '../ui/Clay';
+import { whileSystemUi } from '../core/lockGuard';
 import { fonts, useTheme } from '../theme';
 
 /** Scan a QR code with the camera, or pick a picture of one from the gallery. */
@@ -21,7 +22,7 @@ export function ScanQr({ onText, onCancel, hint }: { onText: (text: string) => v
 
   async function fromGallery() {
     setErr('');
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+    const r = await whileSystemUi(() => ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 }));
     if (r.canceled || !r.assets[0]) return;
     try {
       const found = await scanFromURLAsync(r.assets[0].uri, ['qr']);
@@ -46,7 +47,7 @@ export function ScanQr({ onText, onCancel, hint }: { onText: (text: string) => v
         ) : (
           <View style={{ padding: 24, alignItems: 'center', gap: 12 }}>
             <Body style={{ textAlign: 'center' }} dim>The camera is needed to scan the code.</Body>
-            <Button title="Allow camera" onPress={() => void askPerm()} />
+            <Button title="Allow camera" onPress={() => void whileSystemUi(() => askPerm())} />
           </View>
         )}
         {perm?.granted && (

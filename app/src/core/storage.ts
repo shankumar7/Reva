@@ -82,6 +82,18 @@ export const Vault = {
     await SecureStore.deleteItemAsync(K.pairing).catch(() => {});
   },
 
+  async tries(): Promise<{ n: number; until: number }> {
+    try {
+      const v = await SecureStore.getItemAsync('k_tries');
+      return v ? JSON.parse(v) : { n: 0, until: 0 };
+    } catch {
+      return { n: 0, until: 0 };
+    }
+  },
+  async saveTries(t: { n: number; until: number }) {
+    await SecureStore.setItemAsync('k_tries', JSON.stringify(t), opt).catch(() => {});
+  },
+
   async setSeed(seed: Uint8Array) {
     const c = await getCrypto();
     await SecureStore.setItemAsync(K.seed, c.b64(seed), opt);

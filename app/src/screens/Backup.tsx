@@ -7,6 +7,7 @@ import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import type { Settings } from '../core/storage';
 import { createBackup, exportText, restoreBackup, shareBackup } from '../core/backup';
+import { whileSystemUi } from '../core/lockGuard';
 
 function Field({ v, set, ph }: { v: string; set: (s: string) => void; ph: string }) {
   const t = useTheme();
@@ -52,7 +53,7 @@ export function BackupScreen({ settings, onSettings, onBack, restoreOnly, onRest
   async function restore() {
     setErr(''); setMsg('');
     try {
-      const r = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      const r = await whileSystemUi(() => DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true }));
       if (r.canceled || !r.assets[0]) return;
       if (!rpass) return setErr('Type the passphrase first, then choose the file.');
       await restoreBackup(r.assets[0].uri, rpass, setBusy);

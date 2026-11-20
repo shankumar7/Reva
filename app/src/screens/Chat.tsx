@@ -15,6 +15,7 @@ import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import { contrast } from '../colors';
+import { whileSystemUi } from '../core/lockGuard';
 import { session } from '../core/session';
 import { dataUri } from '../core/images';
 import type { Msg } from '../core/db';
@@ -71,7 +72,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
   const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
   const [recStart, setRecStart] = useState<number | null>(null);
   const [recSecs, setRecSecs] = useState(0);
-  const [, tickNow] = useState(0);
+  const [clock, tickNow] = useState(0);
 
   useEffect(() => {
     session.viewing = true;
@@ -95,7 +96,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
   const data: Item[] = useMemo(
     () => (searchMode ? found.map((m) => ({ t: 'msg' as const, id: m.id, m, first: true, last: true })) : buildItems(chat.messages).reverse()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chat.messages, searchMode, found, tickNow],
+    [chat.messages, searchMode, found, clock],
   );
   const pinned = useMemo(() => [...chat.messages].reverse().find((m) => m.pinned && !m.deleted), [chat.messages]);
 
@@ -113,7 +114,7 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
   async function startRec() {
     setErr('');
     try {
-      const perm = await requestRecordingPermissionsAsync();
+      const perm = await whileSystemUi(() => requestRecordingPermissionsAsync());
       if (!perm.granted) return setErr('The microphone is not allowed. You can allow it in Android settings.');
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
@@ -142,6 +143,8 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
 
   function send() {
     if (!text.trim()) return;
+    if (!chat.ready) return setErr('Still starting up. Your message is kept; try again in a moment.');
+    setErr('');
     if (editing) void session.editMine(editing.id, text);
     else void session.sendText(text, replyTo?.id);
     setText(''); setReplyTo(null); setEditing(null);
@@ -153,11 +156,11 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
     try {
       let r: ImagePicker.ImagePickerResult;
       if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        const perm = await whileSystemUi(() => ImagePicker.requestCameraPermissionsAsync());
         if (!perm.granted) return setErr('The camera is not allowed. You can allow it in Android settings.');
-        r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
+        r = await whileSystemUi(() => ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 }));
       } else {
-        r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+        r = await whileSystemUi(() => ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 }));
       }
       if (r.canceled || !r.assets[0]) return;
       setSending(true);
@@ -209,6 +212,14 @@ export function Chat({ nickname, ttlSeconds, onSettings, onNotes, onStarred, onI
             <Icon name="pin" size={16} color={t.accent} />
             <Text numberOfLines={1} style={{ flex: 1, color: t.text, fontFamily: fonts.medium, fontSize: 13 }}>{pinned.kind === 'img' ? 'Photo' : pinned.kind === 'aud' ? 'Voice note' : pinned.text}</Text>
             <Pressable hitSlop={10} onPress={() => void session.pinMessage(pinned.id, false)}><Icon name="x" size={16} color={t.textDim} /></Pressable>
+          </Clay>
+        </Animated.View>
+      )}
+
+      {chat.authFailed && (
+        <Animated.View entering={FadeIn} style={{ marginHorizontal: 18, marginBottom: 8 }}>
+          <Clay radius={14} color={t.danger} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+            <Text style={{ color: '#FFFFFF', fontFamily: fonts.bold, fontSize: 13 }}>The server does not know this phone any more. Open More, then Settings, then "Pair with the server again".</Text>
           </Clay>
         </Animated.View>
       )}

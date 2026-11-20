@@ -184,3 +184,37 @@ test('a big batch (400 messages) is paced, never rate-limited into loss, and arr
   A.cl.disconnect(); B.cl.disconnect();
   await ctx.srv.close();
 });
+
+
+test('a message is acknowledged only after the app has saved it; a failed save is delivered again', async () => {
+  const ctx = await setup();
+  const { a, b } = await pair(ctx);
+  const A = mk(ctx, a, b);
+  A.cl.connect();
+  await until(() => A.cl.status === 'online');
+  A.cl.send({ k: 'msg', id: 'k1', ts: 1, text: 'keep me' }, 'k1');
+  await until(() => A.sent.length === 1);
+  let attempts = 0;
+  const got: string[] = [];
+  const B = new RevaClient({
+    url: ctx.url, identity: b, crypto: ctx.c, peer: ctx.c.peerFromSignPk(a.signPk), store: new MemoryStore(),
+    events: {
+      onEnvelope: async (e) => {
+        attempts++;
+        await wait(50);
+        if (attempts === 1) throw new Error('disk full'); // the first save fails
+        got.push((e as any).text);
+      },
+    },
+  });
+  B.connect();
+  await until(() => attempts >= 1);
+  await wait(200);
+  assert.equal(ctx.srv.store.queueSize(), 1, 'a message that could not be saved must stay on the server');
+  B.reconnectNow();
+  await until(() => got.length === 1);
+  await until(() => ctx.srv.store.queueSize() === 0);
+  assert.deepEqual(got, ['keep me']);
+  A.cl.disconnect(); B.disconnect();
+  await ctx.srv.close();
+});

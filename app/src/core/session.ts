@@ -61,12 +61,13 @@ export interface ChatState {
   hiAt: number; // last "thinking of you" received
   notes: SharedNote[];
   push: 'unknown' | 'on' | 'denied' | 'unavailable';
+  authFailed: boolean; // the server no longer knows this phone
 }
 
 type Listener = () => void;
 
 class Session {
-  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [], push: 'unknown' };
+  private state: ChatState = { ready: false, status: 'offline', peerOnline: false, peerTyping: false, messages: [], pending: 0, hiAt: 0, notes: [], push: 'unknown', authFailed: false };
   private listeners = new Set<Listener>();
   private client: RevaClient | null = null;
   private identity: Identity | null = null;
@@ -87,7 +88,14 @@ class Session {
     this.listeners.forEach((l) => l());
   }
 
-  async start(): Promise<boolean> {
+  private starting: Promise<boolean> | null = null;
+  start(): Promise<boolean> {
+    if (this.client) return Promise.resolve(true);
+    if (!this.starting) this.starting = this.doStart().finally(() => { this.starting = null; });
+    return this.starting;
+  }
+
+  private async doStart(): Promise<boolean> {
     if (this.client) return true;
     const pairing = await Vault.pairing();
     const seed = await Vault.seed(false);
@@ -104,9 +112,10 @@ class Session {
       peer: c.peerFromSignPk(c.unb64(pairing.peerSignPk)),
       store: outbox,
       events: {
-        onStatus: (status) => this.set({ status, pending: this.client?.pending ?? 0 }),
+        onStatus: (status) => this.set({ status, pending: this.client?.pending ?? 0, authFailed: status === 'online' ? false : this.state.authFailed }),
         onPeerOnline: (peerOnline) => this.set({ peerOnline, peerTyping: peerOnline ? this.state.peerTyping : false }),
-        onEnvelope: (env) => void this.onEnvelope(env),
+        onEnvelope: (env) => this.receive(env),
+        onError: (code) => { if (code === 'auth_failed') this.set({ authFailed: true }); },
         onSent: (cid) => {
           void Messages.setState(cid, 1).then(() => this.reload());
           this.set({ pending: this.client?.pending ?? 0 });
@@ -148,6 +157,21 @@ class Session {
     this.set({ messages: await Messages.all() });
   }
 
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  /** For bursts (an imported chat): reload the list once a moment, not after every batch. */
+  private reloadSoon() {
+    if (this.reloadTimer) return;
+    this.reloadTimer = setTimeout(() => { this.reloadTimer = null; void this.reload(); }, 200);
+  }
+
+  /** Incoming messages are handled one at a time, in order, so an edit can never overtake the message it edits. */
+  private rx: Promise<void> = Promise.resolve();
+  private receive(env: Envelope): Promise<void> {
+    const run = this.rx.then(() => this.onEnvelope(env));
+    this.rx = run.catch(() => {}); // one failure must not block the ones after it
+    return run;
+  }
+
   private newId() {
     return Array.from(rawSodium.randombytes_buf(9) as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
   }
@@ -178,6 +202,7 @@ class Session {
         break;
       }
       case 'img': {
+        if (await Messages.exists(env.id)) break; // delivered twice: keep the first copy and its key
         const key = await Images.store(env.id, env.data);
         await Messages.insert({
           id: env.id, ts: env.ts, mine: false, kind: 'img', replyTo: env.replyTo ?? null, state: 3, once: !!env.once,
@@ -189,6 +214,7 @@ class Session {
         break;
       }
       case 'aud': {
+        if (await Messages.exists(env.id)) break;
         const key = await Images.store(env.id, env.data);
         await Messages.insert({
           id: env.id, ts: env.ts, mine: false, kind: 'aud', replyTo: env.replyTo ?? null, state: 3, seen: this.viewing,
@@ -211,9 +237,11 @@ class Session {
         await Messages.insert({ id: env.id, ts: env.ts, mine: env.m === 0, kind: 'img', text: env.text, state: 3, seen: true, thumb: env.thumb, w: env.w, h: env.h, imgKey: key });
         break;
       }
-      case 'viewed':
-        await Messages.markViewed(env.id);
+      case 'viewed': {
+        const m = await Messages.get(env.id);
+        if (m?.mine) await Messages.markViewed(env.id); // only my own view-once pictures can be marked opened by them
         break;
+      }
       case 'pin':
         await Messages.pin(env.id, env.on);
         break;
@@ -223,13 +251,19 @@ class Session {
         this.set({ notes: await SharedNotes.all() });
         return;
       }
-      case 'edit':
-        await Messages.edit(env.id, env.text);
+      case 'edit': {
+        const m = await Messages.get(env.id);
+        if (m && !m.mine) await Messages.edit(env.id, env.text); // your partner can only change their own messages
         break;
-      case 'del':
-        await Messages.remove(env.id);
-        await Images.remove(env.id);
+      }
+      case 'del': {
+        const m = await Messages.get(env.id);
+        if (m && !m.mine) {
+          await Messages.remove(env.id);
+          await Images.remove(env.id);
+        }
         break;
+      }
       case 'react':
         await Messages.react(env.id, 'theirs', env.emoji);
         break;
@@ -245,12 +279,12 @@ class Session {
         this.set({ hiAt: Date.now() });
         return;
     }
-    await this.reload();
+    this.reloadSoon();
   }
 
-  async sendText(text: string, replyTo?: string | null) {
+  async sendText(text: string, replyTo?: string | null): Promise<boolean> {
     const t = text.trim();
-    if (!t || !this.client) return;
+    if (!t || !this.client) return false;
     const id = this.newId();
     const ts = Date.now();
     const ttl = this.config.ttlSeconds;
@@ -258,6 +292,7 @@ class Session {
     this.client.send({ k: 'msg', id, ts, text: t, replyTo: replyTo ?? undefined, ttl: ttl || undefined }, id);
     this.set({ pending: this.client.pending });
     await this.reload();
+    return true;
   }
 
   async editMine(id: string, text: string) {
@@ -382,6 +417,12 @@ class Session {
     }
   }
 
+  /** Stop notifications for this phone (the server forgets its address). */
+  disablePush() {
+    this.client?.clearPush();
+    this.set({ push: 'unknown' });
+  }
+
   async starMessage(id: string, on: boolean) {
     await Messages.star(id, on); // stars are private: nothing is sent
     await this.reload();
@@ -422,7 +463,7 @@ class Session {
             const b64 = await f.async('base64');
             const tmp = FileSystem.cacheDirectory + 'wa-' + i + '.jpg';
             await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
-            const p = await Images.prepare(tmp, 2000);
+            const p = await Images.prepare(tmp, 0);
             await FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
             if (!had) {
               const key = await Images.store(id, p.data);

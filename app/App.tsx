@@ -27,6 +27,7 @@ import { SharedNotesScreen } from './src/screens/SharedNotes';
 import { StarredScreen } from './src/screens/Starred';
 import { ImportWhatsApp } from './src/screens/ImportWhatsApp';
 import { Disguise } from './modules/disguise';
+import { lockGuard } from './src/core/lockGuard';
 
 type Mode = 'loading' | 'setup' | 'disguise' | 'chat' | 'decoy' | 'settings' | 'notes' | 'starred' | 'import';
 
@@ -37,6 +38,7 @@ export default function App() {
   const [from, setFrom] = useState<'chat' | 'decoy'>('chat');
   const codes = useRef<Codes>({});
   const leftAt = useRef(0);
+  const hiddenSetup = useRef(false); // setup was opened with the hidden gesture
 
   const [bootError, setBootError] = useState('');
   const [isReady, setIsReady] = useState(false); // paired, with codes: the app is set up
@@ -85,16 +87,19 @@ export default function App() {
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'active') {
         session.networkChanged();
-        if (settings.cover && settings.autoLockSeconds > 0 && Date.now() - leftAt.current > settings.autoLockSeconds * 1000) lock();
+        if ((settings.cover || hiddenSetup.current) && settings.autoLockSeconds > 0 && Date.now() - leftAt.current > settings.autoLockSeconds * 1000) lock();
       } else {
         leftAt.current = Date.now();
-        if (settings.cover && settings.autoLockSeconds === 0) lock();
+        if ((settings.cover || hiddenSetup.current) && settings.autoLockSeconds === 0) lock();
       }
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.autoLockSeconds, settings.cover, mode]);
+  }, [settings.autoLockSeconds, settings.cover, mode, isReady]);
   function lock() {
+    if (lockGuard.active) return; // a photo picker, camera or share sheet is open: not really leaving
+    // setup opened by the hidden gesture goes back to the calculator too
+    if (!isReady && hiddenSetup.current) { hiddenSetup.current = false; setMode((m) => (m === 'setup' ? 'disguise' : m)); return; }
     if (!settings.cover) return; // no cover, nothing to hide behind
     session.viewing = false;
     setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import'].includes(m) ? 'disguise' : m));
@@ -121,7 +126,17 @@ export default function App() {
 
   async function tryUnlock(code: string, kind: 'calc' | 'notes'): Promise<boolean> {
     try {
-      return await tryUnlockInner(code, kind);
+      // after 5 wrong codes in a row the app stops listening for a while, so codes cannot be guessed quickly
+      const tr = await Vault.tries();
+      if (Date.now() < tr.until) return false;
+      const ok = await tryUnlockInner(code, kind);
+      if (ok) await Vault.saveTries({ n: 0, until: 0 });
+      else {
+        const n = tr.n + 1;
+        const wait = n >= 5 ? Math.min(15 * 60_000, 30_000 * 2 ** Math.floor((n - 5) / 5)) : 0;
+        await Vault.saveTries({ n, until: wait ? Date.now() + wait : 0 });
+      }
+      return ok;
     } catch {
       return false;
     }
@@ -134,6 +149,7 @@ export default function App() {
     const main = kind === 'calc' ? k.calc : k.notes;
     if (main && c.verifyPasscode(main, code)) {
       session.viewing = true;
+      session.start().catch(() => {}); // already running in most cases; makes sure it is
       setFrom('chat');
       setMode('chat');
       return true;
@@ -180,15 +196,17 @@ export default function App() {
             <Animated.View key={mode} entering={FadeIn.duration(220)} style={{ flex: 1 }}>
               {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} initialStep={setupStart} onExit={isReady ? undefined : () => setMode('disguise')} />}
               {mode === 'disguise' && (kind === 'calculator'
-                ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} onSecret={isReady ? undefined : () => { setSetupStart(undefined); setMode('setup'); }} />
-                : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} onSecret={isReady ? undefined : () => { setSetupStart(undefined); setMode('setup'); }} />)}
+                ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />
+                : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} onSecret={isReady ? undefined : () => { hiddenSetup.current = true; setSetupStart(undefined); setMode('setup'); }} />)}
               {mode === 'chat' && <Chat nickname={settings.nickname} ttlSeconds={settings.disappear} onSettings={() => setMode('settings')} onNotes={() => setMode('notes')} onStarred={() => setMode('starred')} onImport={() => setMode('import')} />}
               {mode === 'starred' && <StarredScreen nickname={settings.nickname} onBack={() => setMode('chat')} />}
               {mode === 'import' && <ImportWhatsApp onBack={() => setMode('chat')} />}
               {mode === 'notes' && <SharedNotesScreen onBack={() => setMode('chat')} />}
               {mode === 'decoy' && <DecoyChat nickname={settings.nickname} />}
               {mode === 'settings' && (
-                <SettingsScreen settings={settings} onChange={(s) => void changeSettings(s)} onBack={() => setMode(from)} onLock={lock} onPanic={() => void doPanic()} />
+                <SettingsScreen settings={settings} onChange={(s) => void changeSettings(s)} onBack={() => setMode(from)} onLock={lock} onPanic={() => void doPanic()}
+                  onRestored={() => { session.stop(); void boot(); }}
+                  onRepair={async () => { session.stop(); await Vault.clearPairing(); void boot(); }} />
               )}
             </Animated.View>
           </Inner>
