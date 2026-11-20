@@ -296,7 +296,7 @@ export function Codes({ onDone, change }: { onDone: () => void; change?: boolean
       <Title lines={change ? ['New', 'codes'] : ['Your', 'codes']} />
       <Body dim>Type a code in the ordinary-looking app to open the chat. They are never stored, only a scrambled check of them.</Body>
       {field('lock', 'Calculator code', 'Type it, then press =', calc, setCalc, '6 digits or more', true, 120)}
-      {field('lock', 'Notes code', 'Type it into the search box and press search', notes, setNotes, 'letters and digits, like 482913ab', false, 190)}
+      {field('lock', 'Notes code', 'Type it into the search box and press search', notes, setNotes, 'e.g. 482913ab', false, 190)}
       {field('eye', 'Decoy code', 'Opens an empty, fake chat', decoy, setDecoy, 'digits', true, 260)}
       {field('trash', 'Wipe code (optional)', 'Erases this phone at once', panic, setPanic, 'digits', true, 330)}
       <Pressable onPress={() => setShow((s) => !s)} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

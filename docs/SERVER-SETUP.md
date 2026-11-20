@@ -49,6 +49,13 @@ chmod 600 ~/KEYFILE && scp -o StrictHostKeyChecking=accept-new -i ~/KEYFILE reva
 4. Phone 2 shows a QR code back. On phone 1 press **They scanned it** and scan it.
 5. Both phones choose their secret codes. Done. After this, no third phone can ever join.
 
+## If a phone is wiped or lost and you have no backup
+
+The server remembers exactly two phones. A phone with no backup has lost its key, so the server will refuse it.
+Run `sudo bash reva-server/deploy/reset-pairing.sh` on the server (same `ssh` pattern as above). It forgets both
+phones. Then pair again with the QR codes. Messages already on a phone stay there. With a **backup**
+(Settings, Backup) none of this is needed: restore it and the phone is the same phone again.
+
 ## Updating the app later
 
 1. I send you a new APK. Upload it to Cloud Shell.

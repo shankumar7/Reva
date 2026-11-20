@@ -57,6 +57,7 @@ function Inner() {
       {screen === 'calc' && <Calculator tryUnlock={async () => false} />}
       {screen === 'notes' && <Notes tryUnlock={async () => false} titleUnlock={false} />}
       {screen === 'setup' && <Setup onDone={noop} />}
+      {screen === 'setupcodes' && <Setup onDone={noop} initialStep="codes" />}
       {screen === 'starred' && <StarredScreen nickname="Asha" onBack={noop} />}
       {screen === 'sharednotes' && <SharedNotesScreen onBack={noop} />}
     </View>

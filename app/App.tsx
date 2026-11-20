@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, View } from 'react-native';
+import { AppState, BackHandler, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -104,6 +104,15 @@ export default function App() {
     session.viewing = false;
     setMode((m) => (['chat', 'decoy', 'settings', 'notes', 'starred', 'import'].includes(m) ? 'disguise' : m));
   }
+
+  // the phone's back button goes back one screen instead of closing the app
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (mode === 'settings' || mode === 'notes' || mode === 'starred' || mode === 'import') { setMode(mode === 'settings' ? from : 'chat'); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [mode, from]);
 
   // quick reconnect when the network changes (Wi-Fi to mobile data etc.)
   useEffect(() => {

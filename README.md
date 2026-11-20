@@ -59,6 +59,14 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - The design is checked in a real browser: `EXPO_PUBLIC_PREVIEW=1 npx expo export --platform web` builds a preview
   of the real screens with sample data (not part of the phone app).
 
+**First install, wipe and setup**
+- On first install the icon and name are **"Reva"** and the app opens straight into setup. Once setup is done
+  the launcher switches to your chosen disguise (Calculator by default).
+- After a **wipe** the app is a plain Calculator again and shows nothing about itself. To set up again, hold the `=`
+  key for about 1.5 seconds (Notes disguise: type `::setup` in the search box and press search).
+- Android's back button goes back one screen. Opening the photo picker, camera or file picker does not lock the app.
+- Five wrong codes in a row make the app ignore codes for a while (30 seconds, then longer).
+
 **No cover mode**
 - Turn the disguise off in Settings and the app opens straight into the chat, with a plain "Chat" icon.
 
