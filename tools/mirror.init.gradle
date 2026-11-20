@@ -1,0 +1,33 @@
+// Gradle init script: send Maven Central / Google / plugin portal downloads through the local mirror.
+// Use:  gradle -I tools/mirror.init.gradle ...
+def PORT = System.getenv('MIRROR_PORT') ?: '8899'
+def mirrors = [
+  [re: /https?:\/\/(repo\.maven\.apache\.org|repo1\.maven\.org)\/maven2\/?.*/, path: 'central'],
+  [re: /https?:\/\/(maven\.google\.com|dl\.google\.com\/dl\/android\/maven2)\/?.*/, path: 'google'],
+  [re: /https?:\/\/plugins\.gradle\.org\/m2\/?.*/, path: 'plugins'],
+]
+def fix = { RepositoryHandler r ->
+  def hits = []
+  r.each { repo ->
+    if (repo instanceof MavenArtifactRepository) {
+      def u = repo.url.toString()
+      def m = mirrors.find { u ==~ it.re }
+      if (m) hits << [repo: repo, path: m.path]
+    }
+  }
+  hits.each { h ->
+    r.remove(h.repo)
+    r.maven { url "http://127.0.0.1:${PORT}/${h.path}/"; allowInsecureProtocol = true }
+  }
+}
+beforeSettings { s ->
+  s.pluginManagement.repositories.all { }  // force creation
+  s.pluginManagement.repositories {
+    maven { url "http://127.0.0.1:${PORT}/plugins/"; allowInsecureProtocol = true }
+    maven { url "http://127.0.0.1:${PORT}/google/"; allowInsecureProtocol = true }
+    maven { url "http://127.0.0.1:${PORT}/central/"; allowInsecureProtocol = true }
+  }
+}
+settingsEvaluated { s -> fix(s.pluginManagement.repositories) }
+beforeProject { p -> fix(p.buildscript.repositories) }
+afterProject { p -> fix(p.repositories) }
