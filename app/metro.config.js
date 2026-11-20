@@ -13,7 +13,7 @@ if (process.env.EXPO_PUBLIC_PREVIEW === '1') {
   const emptyFor = [
     'expo-camera', 'expo-image-picker', 'expo-document-picker', 'expo-sharing', 'expo-intent-launcher', 'expo-screen-capture',
     'expo-image-manipulator', 'expo-file-system/legacy', 'expo-application', '@react-native-community/netinfo',
-    'expo-notifications', 'expo-audio', 'expo-haptics', 'expo-local-authentication',
+    'expo-notifications', 'expo-audio', 'react-native-webrtc', 'expo-haptics', 'expo-local-authentication',
   ];
   config.resolver.resolveRequest = (context, moduleName, platform) => {
     const file = stubs[moduleName] || (emptyFor.includes(moduleName) ? 'empty.ts' : null);

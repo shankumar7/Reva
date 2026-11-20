@@ -6,6 +6,7 @@ export type ClientMsg =
   | { t: 'send'; cid: string; blob: string; ephemeral?: boolean }
   | { t: 'ack'; ids: number[] }
   | { t: 'push'; token: string; kind?: 'calculator' | 'notes' | 'chat' } // phone's notification address (no content ever goes through it)
+  | { t: 'ice' } // ask for relay (TURN) addresses for a call
   | { t: 'ping' };
 
 export type ServerMsg =
@@ -16,7 +17,10 @@ export type ServerMsg =
   | { t: 'msg'; id: number; blob: string; ts: number }
   | { t: 'peer'; online: boolean; signPk: string | null }
   | { t: 'error'; code: string }
+  | { t: 'ice'; servers: IceServer[] }
   | { t: 'pong' };
+
+export interface IceServer { urls: string[]; username?: string; credential?: string }
 
 /** What goes inside an encrypted blob. */
 export type Envelope =
@@ -36,6 +40,7 @@ export type Envelope =
   | { k: 'album'; id: string; name: string; on: boolean } // a photo added to or removed from an album
   | { k: 'viewed'; id: string } // a view-once picture was opened
   | { k: 'pin'; id: string; on: boolean }
+  | { k: 'call'; op: 'offer' | 'answer' | 'ice' | 'end' | 'busy'; cid: string; ts: number; sdp?: string; cand?: string; why?: 'declined' | 'missed' | 'hangup' | 'failed' } // a voice call
   | { k: 'snote'; id: string; title: string; body: string; ts: number; del?: boolean }; // shared notes
 
 /** What the first phone shows as a QR code. */

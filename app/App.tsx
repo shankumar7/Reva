@@ -28,6 +28,7 @@ import { StarredScreen } from './src/screens/Starred';
 import { ImportWhatsApp } from './src/screens/ImportWhatsApp';
 import { DaysScreen } from './src/screens/DaysScreen';
 import { PhotosScreen } from './src/screens/Albums';
+import { CallScreen } from './src/screens/CallScreen';
 import { Disguise } from './modules/disguise';
 import { lockGuard } from './src/core/lockGuard';
 import { handleBack } from './src/core/backStack';
@@ -101,7 +102,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.autoLockSeconds, settings.cover, mode, isReady]);
   function lock() {
-    if (lockGuard.active) return; // a photo picker, camera or share sheet is open: not really leaving
+    if (lockGuard.active || session.call.busy) return; // a photo picker or a call is open: not really leaving // a photo picker, camera or share sheet is open: not really leaving
     // setup opened by the hidden gesture goes back to the calculator too
     if (!isReady && hiddenSetup.current) { hiddenSetup.current = false; setMode((m) => (m === 'setup' ? 'disguise' : m)); return; }
     if (!settings.cover) return; // no cover, nothing to hide behind
@@ -241,6 +242,7 @@ export default function App() {
                   onRepair={async () => { session.stop(); await Vault.clearPairing(); void boot(); }} />
               )}
             </Animated.View>
+            {secret && mode !== 'decoy' && mode !== 'setup' && <CallScreen />}
           </Inner>
         </ThemeProvider>
       </SafeAreaProvider>

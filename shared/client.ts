@@ -2,7 +2,7 @@
 // It handles: login with the device key, encryption, the offline queue,
 // automatic reconnect, and delivery acknowledgements.
 import type { Crypto, Identity, PeerKeys } from './crypto.js';
-import type { ClientMsg, Envelope, ServerMsg } from './protocol.js';
+import type { ClientMsg, Envelope, IceServer, ServerMsg } from './protocol.js';
 
 export interface OutboxItem {
   cid: string;
@@ -101,6 +101,17 @@ export class RevaClient {
   connect() {
     this.wantOpen = true;
     this.open();
+  }
+
+  private iceWait: ((s: IceServer[]) => void)[] = [];
+  /** Asks the server for the call relay addresses. Gives [] if there is no relay or no answer in 4 seconds. */
+  requestIce(): Promise<IceServer[]> {
+    return new Promise((resolve) => {
+      if (!this.ready) return resolve([]);
+      const timer = setTimeout(() => resolve([]), 4000);
+      this.iceWait.push((s) => { clearTimeout(timer); resolve(s); });
+      this.raw({ t: 'ice' });
+    });
   }
 
   disconnect() {
@@ -202,6 +213,9 @@ export class RevaClient {
       }
       case 'pong':
         this.lastPong = Date.now();
+        break;
+      case 'ice':
+        for (const f of this.iceWait.splice(0)) f(m.servers ?? []);
         break;
       case 'peer':
         this.peerOnline = m.online;

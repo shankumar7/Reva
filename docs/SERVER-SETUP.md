@@ -74,3 +74,18 @@ scrambled data, the two device keys and any messages not yet delivered.
 
 Reva lives in its own container with its own database and secrets. The web front door (`/opt/edge`) is shared:
 another app adds a small file in `/opt/edge/sites/` for its own name. Nothing else is shared.
+
+## Extra network rules for voice calls
+
+Calls need a small relay (coturn), which the installer starts for you. Add these **Ingress rules** in the same Oracle
+security list where you opened 80 and 443 (Source `0.0.0.0/0` each):
+
+| Protocol | Destination port |
+|---|---|
+| UDP | 3478 |
+| TCP | 3478 |
+| UDP | 49160-49200 |
+
+Servers made with `tools/oracle-get-server.sh` already have them. Without them chat works but calls may not connect on
+mobile data. To update an existing server, upload the new `reva-server.tar.gz` and run the same install command again;
+your messages, keys and settings are kept.

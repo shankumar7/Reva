@@ -226,6 +226,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
             </View>
           )}
         </View>
+        <IconBtn icon="phone" label="Call" onPress={() => void session.call.start()} />
         <IconBtn icon="heart" label="Thinking of you" onPress={() => { session.thinkingOfYou(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }} />
         <IconBtn icon="more" label="More" onPress={() => setMore(true)} />
       </View>

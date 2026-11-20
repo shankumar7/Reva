@@ -15,6 +15,7 @@ import { session } from '../src/core/session';
 import type { Msg } from '../src/core/db';
 import { Calculator } from '../src/disguise/Calculator';
 import { Notes } from '../src/disguise/Notes';
+import { CallScreen } from '../src/screens/CallScreen';
 import { Chat } from '../src/screens/Chat';
 import { SettingsScreen } from '../src/screens/Settings';
 import { ThemeGallery } from '../src/screens/ThemeGallery';
@@ -66,6 +67,7 @@ function Inner() {
       {screen === 'setupcodes' && <Setup onDone={noop} initialStep="codes" />}
       {screen === 'days' && <DaysScreen since={q.get('since') ?? ''} nickname="Asha" onSave={noop} onBack={noop} />}
       {screen === 'photos' && <PhotosScreen onBack={noop} />}
+      {screen === 'call' && <PreviewCall phase={(q.get('phase') ?? 'ringing') as any} />}
       {screen === 'import' && <ImportWhatsApp onBack={noop} />}
       {screen === 'backup' && <BackupScreen settings={defaultSettings} onSettings={noop} onBack={noop} nickname="Asha" />}
       {screen === 'starred' && <StarredScreen nickname="Asha" onBack={noop} />}
@@ -87,4 +89,10 @@ export default function Preview() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+function PreviewCall({ phase }: { phase: 'ringing' | 'calling' | 'live' }) {
+  // show a call screen with sample state
+  (session.call as any).st = { phase, cid: 'x', outgoing: phase !== 'ringing', muted: false, speaker: phase === 'live', startedAt: phase === 'live' ? Date.now() - 83_000 : 0 };
+  return <CallScreen />;
 }

@@ -8,6 +8,8 @@ import { Vault } from './storage';
 import { Albums, Messages, SharedNotes, openDb, wipeDb, type Msg, type SharedNote } from './db';
 import * as Images from './images';
 import { getPushToken } from './push';
+import { CallEngine, callSummary } from './call';
+import { nativeRtc } from './rtcNative';
 import * as FileSystem from 'expo-file-system/legacy';
 import type JSZip from 'jszip';
 import { IMAGE_EXT, attachmentLabel, findInZip, makeIds, type WaMessage } from './whatsapp';
@@ -81,6 +83,25 @@ class Session {
   hooks: { since?: (date: string) => void } = {};
   private purgeTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** Voice calls. The call screen reads its state from here. */
+  readonly call = new CallEngine({
+    rtc: nativeRtc,
+    getIce: async () => (await this.client?.requestIce()) ?? [],
+    send: (env, persistent) => {
+      if (persistent) this.client?.send(env, 'c' + this.newId());
+      else this.client?.sendEphemeral(env);
+    },
+  });
+  private callLogger = this.call.endedListeners.add((e) => {
+    // a line in the chat: "Voice call · 2:31", "Missed voice call" ...
+    void (async () => {
+      const id = 'call' + e.cid + (e.outgoing ? 'o' : 'i');
+      if (await Messages.exists(id)) return;
+      await Messages.insert({ id, ts: e.at, mine: e.outgoing, text: callSummary(e), state: 3, seen: e.outgoing || this.viewing });
+      this.reloadSoon();
+    })().catch(() => {});
+  });
+
   subscribe = (l: Listener) => {
     this.listeners.add(l);
     return () => this.listeners.delete(l);
@@ -133,6 +154,7 @@ class Session {
   }
 
   stop() {
+    this.call.abort();
     if (this.purgeTimer) clearInterval(this.purgeTimer);
     this.purgeTimer = null;
     this.client?.disconnect();
@@ -296,6 +318,9 @@ class Session {
         return;
       case 'hi':
         this.set({ hiAt: Date.now() });
+        return;
+      case 'call':
+        this.call.onEnvelope(env);
         return;
     }
     this.reloadSoon();

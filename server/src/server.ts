@@ -19,6 +19,8 @@ export interface Options {
   backupDir?: string;
   backupKey?: string; // 64 hex characters
   fcm?: Fcm | null; // free push notifications, optional
+  turnHost?: string; // address of the call relay (coturn), optional
+  turnSecret?: string; // shared with coturn; makes the short-lived logins
   maxMsgBytes?: number;
 }
 
@@ -211,6 +213,15 @@ export async function createServer(opts: Options) {
         if (peer) send(peer.ws, { t: 'msg', id, blob: m.blob, ts: Date.now() });
         else wake(to);
         return;
+      }
+
+      if (m.t === 'ice') {
+        // short-lived relay login for a call (valid one hour, useless afterwards)
+        const host = opts.turnHost, secret = opts.turnSecret;
+        if (!host || !secret) return send(ws, { t: 'ice', servers: [] });
+        const username = String(Math.floor(Date.now() / 1000) + 3600) + ':reva';
+        const credential = crypto.createHmac('sha1', secret).update(username).digest('base64');
+        return send(ws, { t: 'ice', servers: [{ urls: [`stun:${host}:3478`, `turn:${host}:3478?transport=udp`, `turn:${host}:3478?transport=tcp`], username, credential }] });
       }
 
       if (m.t === 'push') {

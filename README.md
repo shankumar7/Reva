@@ -29,6 +29,11 @@ a jump-to-latest button, and one round button that turns from a microphone into 
 |---|---|---|---|
 | <img src="docs/screenshots/days.png" width="170"> | <img src="docs/screenshots/photos.png" width="170"> | <img src="docs/screenshots/stickers.png" width="170"> | <img src="docs/screenshots/chat-sticker.png" width="170"> |
 
+### Voice calls (dressed up as a clock)
+| Someone calls: a ringing alarm | In a call: a timer |
+|---|---|
+| <img src="docs/screenshots/call-alarm.png" width="220"> | <img src="docs/screenshots/call-timer.png" width="220"> |
+
 ### 33 themes
 The same chat in twelve of them:
 
@@ -76,6 +81,10 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - **Stickers**: 40 stickers in four packs (Love, Daily, Moods, Fun). They take the colours of your theme, and only a tiny
   id is sent, so they cost no data.
 - Quick "thinking of you" heart
+- **Voice calls** (the phone button in the chat header). An incoming call shows as a ringing **alarm**: **Snooze** answers,
+  **Off** declines. A call in progress looks like a **timer** with Mute, Speaker and Stop. The sound goes phone to phone
+  (WebRTC, encrypted); when the networks do not allow that, it goes through your own free relay (coturn) on the server.
+  Calls end up as a line in the chat ("Voice call 2:31", "Missed voice call"). Keep the app open during a call.
 - Voice notes (up to 2 minutes), encrypted like everything else
 - Pictures from the gallery or camera: shrunk, location removed, encrypted on the phone, pinch-to-zoom viewer,
   an explicit **Save to gallery** button (default off, switchable), and **view once**
@@ -157,7 +166,7 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 | `app/plugins/withDisguise.js`, `app/modules/disguise/` | Launcher icon and name switching, home-screen shortcut, save to gallery. |
 | `deploy/` | Docker, Caddy (HTTPS), the one-command installer, update publishing, backup restore, laptop test. |
 | `tools/` | Maven mirror for flaky networks, server bundle maker, Oracle server creation script. |
-| `docs/` | `SERVER-SETUP.md` (Oracle, step by step), `PUSH-SETUP.md` (free notifications). |
+| `docs/` | `SERVER-SETUP.md` (Oracle, step by step), `PUSH-SETUP.md` (free notifications), `ORACLE-ON-PI.md` (getting the Oracle server using a Raspberry Pi). |
 
 ## Tests
 
@@ -184,6 +193,10 @@ For push, put your Firebase `google-services.json` in `app/` (it is git-ignored)
 Release builds are signed with a private key kept **outside** this repository.
 
 ## Honest status
+
+Voice calls are new and have **not been tried on two real phones yet**: the call logic is tested with fake connections, and the
+relay login is tested, but the real audio, the microphone, the speaker switch and the relay need a real test.
+Calls need the Oracle security list to allow **UDP 3478, TCP 3478 and UDP 49160-49200** (see `docs/SERVER-SETUP.md`).
 
 Tested by automated tests: encryption, pairing rules, delivery, receipts, offline queue, reconnect,
 large pictures through the server, backup file, push wake-up (against a fake Firebase), the WhatsApp parser,

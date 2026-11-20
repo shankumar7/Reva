@@ -2,14 +2,14 @@
   "expo": {
     "name": "Tools",
     "slug": "utilkit",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.utilkit.tools",
-      "versionCode": 8,
+      "versionCode": 9,
       "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#2B3445",
@@ -20,7 +20,8 @@
         "REQUEST_INSTALL_PACKAGES",
         "VIBRATE",
         "ACCESS_NETWORK_STATE",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
       ],
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",

@@ -77,8 +77,10 @@ oci network route-table update --rt-id "$RT" --force \
   --route-rules "[{\"destination\":\"0.0.0.0/0\",\"destinationType\":\"CIDR_BLOCK\",\"networkEntityId\":\"$IGW\"}]" >/dev/null || die "Could not set the route."
 SL="$(oci network vcn get --vcn-id "$VCN" --query 'data."default-security-list-id"' --raw-output)"
 tcp() { printf '{"source":"0.0.0.0/0","protocol":"6","isStateless":false,"tcpOptions":{"destinationPortRange":{"min":%s,"max":%s}}}' "$1" "$1"; }
+udp() { printf '{"source":"0.0.0.0/0","protocol":"17","isStateless":false,"udpOptions":{"destinationPortRange":{"min":%s,"max":%s}}}' "$1" "$1"; }
+udp_range() { printf '{"source":"0.0.0.0/0","protocol":"17","isStateless":false,"udpOptions":{"destinationPortRange":{"min":%s,"max":%s}}}' "$1" "$2"; }
 oci network security-list update --security-list-id "$SL" --force \
-  --ingress-security-rules "[$(tcp 22),$(tcp 80),$(tcp 443),{\"source\":\"0.0.0.0/0\",\"protocol\":\"1\",\"isStateless\":false,\"icmpOptions\":{\"type\":3,\"code\":4}}]" \
+  --ingress-security-rules "[$(tcp 22),$(tcp 80),$(tcp 443),$(tcp 3478),$(udp 3478),$(udp_range 49160 49200),{\"source\":\"0.0.0.0/0\",\"protocol\":\"1\",\"isStateless\":false,\"icmpOptions\":{\"type\":3,\"code\":4}}]" \
   --egress-security-rules '[{"destination":"0.0.0.0/0","protocol":"all","isStateless":false}]' >/dev/null || die "Could not open the ports."
 SUBNET="$(oci network subnet list -c "$T" --vcn-id "$VCN" --display-name reva-subnet --query 'data[0].id' --raw-output 2>/dev/null | grep -E '^ocid1' || true)"
 if [ -z "$SUBNET" ]; then

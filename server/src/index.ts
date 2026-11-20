@@ -32,6 +32,8 @@ const srv = await createServer({
   updatesDir: `${dataDir}/updates`,
   backupDir: `${dataDir}/backups`,
   backupKey: process.env.BACKUP_KEY,
+  turnHost: process.env.TURN_HOST,
+  turnSecret: process.env.TURN_SECRET,
 });
 // Only start-up information is logged. Never message data.
 console.log(`server listening on :${srv.port}`);

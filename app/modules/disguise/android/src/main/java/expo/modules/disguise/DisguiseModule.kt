@@ -2,6 +2,8 @@ package expo.modules.disguise
 
 import android.content.ComponentName
 import android.content.ContentValues
+import android.content.Context
+import android.media.AudioManager
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -42,6 +44,21 @@ class DisguiseModule : Module() {
         val s = pm.getComponentEnabledSetting(alias(it))
         s == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
       }
+    }
+
+    // Call sound: on = phone-call mode (echo cancelling, volume keys control the call), off = back to normal.
+    Function("setCallAudio") { on: Boolean ->
+      val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      if (on) {
+        am.mode = AudioManager.MODE_IN_COMMUNICATION
+      } else {
+        @Suppress("DEPRECATION") am.isSpeakerphoneOn = false
+        am.mode = AudioManager.MODE_NORMAL
+      }
+    }
+    Function("setSpeaker") { on: Boolean ->
+      val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      @Suppress("DEPRECATION") am.isSpeakerphoneOn = on
     }
 
     // Home-screen shortcut with any name and picture you like.
