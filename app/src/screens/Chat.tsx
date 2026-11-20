@@ -329,7 +329,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
 
       {recStart !== null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: bottomPad, paddingTop: 4 }}>
-          <ClayPress onPress={() => void stopRec(false)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Cancel recording">
+          <ClayPress onPress={() => void stopRec(false)} radius={22} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} label="Cancel recording">
             <Icon name="trash" size={22} color={t.danger} />
           </ClayPress>
           <Clay radius={26} style={{ flex: 1, paddingHorizontal: 18, paddingVertical: 15, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -337,28 +337,29 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
             <Text style={{ color: t.text, fontFamily: fonts.bold, fontSize: 16 }}>{Math.floor(recSecs / 60)}:{String(recSecs % 60).padStart(2, '0')}</Text>
             <Text style={{ color: t.textDim, fontFamily: fonts.body, fontSize: 13 }}>Recording…</Text>
           </Clay>
-          <ClayPress onPress={() => void stopRec(true)} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Send voice note">
+          <ClayPress onPress={() => void stopRec(true)} radius={22} color={t.accent} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} label="Send voice note">
             <Icon name="send" size={24} color={t.onAccent} />
           </ClayPress>
         </View>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingBottom: bottomPad, paddingTop: 4 }}>
-          <ClayPress onPress={() => setAttach(true)} radius={26} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label="Add a picture" disabled={sending}>
-            {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={24} />}
-          </ClayPress>
-          <Clay radius={26} style={{ flex: 1, paddingLeft: 18, paddingRight: 6, minHeight: 52, flexDirection: 'row', alignItems: 'flex-end' }}>
-            {/* one line is exactly as tall as the round buttons; longer text grows the box, then scrolls inside it */}
+          <Clay radius={24} style={{ flex: 1, paddingLeft: 4, paddingRight: 6, minHeight: 48, flexDirection: 'row', alignItems: 'flex-end' }}>
+            {/* add files / stickers, on the left inside the box */}
+            <Pressable onPress={() => setAttach(true)} disabled={sending} hitSlop={6} accessibilityLabel="Add a picture, sticker or file" style={{ width: 42, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+              {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={22} color={t.text} />}
+            </Pressable>
+            {/* one line is exactly as tall as the box; longer text grows it, then scrolls inside */}
             <TextInput value={text} multiline numberOfLines={1} scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
               onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
-              style={{ flex: 1, color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 15, paddingBottom: 15, minHeight: 52, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
+              style={{ flex: 1, color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 13, paddingBottom: 13, paddingLeft: 4, minHeight: 48, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
             {/* pictures one tap away, like WhatsApp: they step aside while you type */}
             {!text.trim() && !editing && (
-              <View style={{ flexDirection: 'row', height: 52, alignItems: 'center' }}>
-                <Pressable onPress={() => void pick('gallery')} disabled={sending} hitSlop={6} accessibilityLabel="Photos" style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="image" size={22} color={t.textDim} />
+              <View style={{ flexDirection: 'row', height: 48, alignItems: 'center' }}>
+                <Pressable onPress={() => void pick('gallery')} disabled={sending} hitSlop={6} accessibilityLabel="Photos" style={{ width: 38, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="image" size={21} color={t.textDim} />
                 </Pressable>
-                <Pressable onPress={() => void pick('camera')} disabled={sending} hitSlop={6} accessibilityLabel="Camera" style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="camera" size={22} color={t.textDim} />
+                <Pressable onPress={() => void pick('camera')} disabled={sending} hitSlop={6} accessibilityLabel="Camera" style={{ width: 38, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="camera" size={21} color={t.textDim} />
                 </Pressable>
               </View>
             )}
@@ -467,9 +468,9 @@ function SendMic({ hasText, editing, onSend, onMic }: { hasText: boolean; editin
   const mic = useAnimatedStyle(() => ({ opacity: 1 - v.value, transform: [{ scale: 1 - 0.4 * v.value }, { rotate: `${v.value * -30}deg` }] }));
   const snd = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ scale: 0.6 + 0.4 * v.value }, { rotate: `${(1 - v.value) * 30}deg` }] }));
   return (
-    <ClayPress onPress={hasText ? onSend : onMic} radius={26} color={t.accent} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }} label={hasText ? 'Send' : 'Record a voice note'}>
-      <Animated.View style={[{ position: 'absolute' }, mic]}><Icon name="mic" size={24} color={t.onAccent} /></Animated.View>
-      <Animated.View style={[{ position: 'absolute' }, snd]}><Icon name={editing ? 'check' : 'send'} size={24} color={t.onAccent} /></Animated.View>
+    <ClayPress onPress={hasText ? onSend : onMic} radius={22} color={t.accent} style={{ width: 44, height: 44, marginBottom: 2, alignItems: 'center', justifyContent: 'center' }} label={hasText ? 'Send' : 'Record a voice note'}>
+      <Animated.View style={[{ position: 'absolute' }, mic]}><Icon name="mic" size={21} color={t.onAccent} /></Animated.View>
+      <Animated.View style={[{ position: 'absolute' }, snd]}><Icon name={editing ? 'check' : 'send'} size={21} color={t.onAccent} /></Animated.View>
     </ClayPress>
   );
 }
