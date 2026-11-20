@@ -35,15 +35,22 @@ export default function App() {
   const codes = useRef<Codes>({});
   const leftAt = useRef(0);
 
+  const [bootError, setBootError] = useState('');
   const boot = useCallback(async () => {
-    const [s, p, c] = await Promise.all([Vault.settings(), Vault.pairing(), Vault.codes()]);
-    setSettings(s);
-    codes.current = c;
-    const ready = !!p?.peerSignPk && !!c.calc;
-    if (!ready && p === null) return setMode('setup');
-    if (!ready) return setMode('setup'); // half-finished setup: continue it
-    await session.start();
-    setMode('disguise');
+    try {
+      setBootError('');
+      const [s, p, c] = await Promise.all([Vault.settings(), Vault.pairing(), Vault.codes()]);
+      setSettings(s);
+      codes.current = c;
+      const ready = !!p?.peerSignPk && !!c.calc;
+      if (!ready) return setMode('setup'); // new, or a half-finished setup: continue it
+      setMode('disguise');
+      // connecting must never block opening the app
+      session.start().catch(() => {});
+    } catch (e) {
+      setBootError(e instanceof Error ? e.message : String(e));
+      setMode('setup');
+    }
   }, []);
   useEffect(() => { void boot(); }, [boot]);
 
@@ -92,6 +99,13 @@ export default function App() {
   }, [mode, settings.disguise]);
 
   async function tryUnlock(code: string, kind: 'calc' | 'notes'): Promise<boolean> {
+    try {
+      return await tryUnlockInner(code, kind);
+    } catch {
+      return false;
+    }
+  }
+  async function tryUnlockInner(code: string, kind: 'calc' | 'notes'): Promise<boolean> {
     const c = await getCrypto();
     const k = codes.current;
     if (k.panic && c.verifyPasscode(k.panic, code)) { await doPanic(); return true; }
@@ -130,7 +144,7 @@ export default function App() {
         <ThemeProvider choice={settings.theme}>
           <Inner>
             <Animated.View key={mode} entering={FadeIn.duration(220)} style={{ flex: 1 }}>
-              {mode === 'setup' && <Setup onDone={() => void boot()} />}
+              {mode === 'setup' && <Setup onDone={() => void boot()} startError={bootError} />}
               {mode === 'disguise' && (kind === 'calculator'
                 ? <Calculator tryUnlock={(c) => tryUnlock(c, 'calc')} />
                 : <Notes tryUnlock={(c) => tryUnlock(c, 'notes')} titleUnlock={settings.notesUnlock === 'title'} />)}

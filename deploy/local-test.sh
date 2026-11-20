@@ -47,6 +47,12 @@ echo " In the app, 'I am starting', type these two:"
 echo "   Server address: wss://${URL#https://}"
 echo "   Setup code:     $TOKEN"
 echo "=========================================================="
+if command -v qrencode >/dev/null; then
+  echo; echo "Or scan this with the app (first phone, 'I am starting'):"; echo
+  qrencode -t ANSIUTF8 "{\"v\":1,\"url\":\"wss://${URL#https://}\",\"token\":\"$TOKEN\"}"
+else
+  echo "(Optional: 'brew install qrencode', then run again, to get a QR code to scan instead of typing.)"
+fi
 echo "Keep this window open while testing. Press Ctrl+C to stop."
 echo "The address changes every time you run this, so pair the phones in one go."
 wait $SERVER

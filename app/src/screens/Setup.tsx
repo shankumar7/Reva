@@ -12,24 +12,35 @@ import { Vault } from '../core/storage';
 
 type Step = 'role' | 'server' | 'showFirst' | 'scanReply' | 'scanPartner' | 'showSecond' | 'codes';
 
-export function Setup({ onDone }: { onDone: () => void }) {
+export function Setup({ onDone, startError }: { onDone: () => void; startError?: string }) {
   const t = useTheme();
   const ins = useSafeAreaInsets();
   const [step, setStep] = useState<Step>('role');
   const [qr, setQr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  const [err, setErr] = useState(startError ? 'Start-up problem: ' + startError : '');
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
 
-  async function first(u: string, tk: string) {
+  /** Runs a step, always ends the spinner, and shows the real error text if something breaks. */
+  async function guard(fn: () => Promise<void>) {
     setBusy(true); setErr('');
-    const r = await startAsFirst(u, tk);
-    setBusy(false);
-    if (!r.ok) return setErr(r.error);
-    setQr(JSON.stringify(r.qr));
-    setStep('showFirst');
+    try {
+      await fn();
+    } catch (e) {
+      setErr('Something went wrong: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy(false);
+    }
   }
+
+  const first = (u: string, tk: string) =>
+    guard(async () => {
+      const r = await startAsFirst(u, tk);
+      if (!r.ok) return setErr(r.error);
+      setQr(JSON.stringify(r.qr));
+      setStep('showFirst');
+    });
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ padding: 22, paddingTop: ins.top + 24, paddingBottom: ins.bottom + 30, gap: 18 }} keyboardShouldPersistTaps="handled">
@@ -74,28 +85,26 @@ export function Setup({ onDone }: { onDone: () => void }) {
         {step === 'scanReply' && (
           <>
             <H1>Scan theirs</H1>
-            <ScanQr hint="Their phone now shows a code. Scan it here, together." onText={async (txt) => {
+            <ScanQr hint="Their phone now shows a code. Scan it here, together." onText={(txt) => void guard(async () => {
               const p = parseQr(txt);
               if (p.kind !== 'reply') return setErr('That is not the reply code.');
               await finishAsFirst(p.signPk);
               setStep('codes');
-            }} />
+            })} />
           </>
         )}
 
         {step === 'scanPartner' && (
           <>
             <H1>Scan the code</H1>
-            <ScanQr hint="Scan the code shown on your partner's phone, or choose a picture of it." onText={async (txt) => {
+            <ScanQr hint="Scan the code shown on your partner's phone, or choose a picture of it." onText={(txt) => void guard(async () => {
               const p = parseQr(txt);
               if (p.kind !== 'partner') return setErr('That is not a pairing code.');
-              setBusy(true);
               const r = await joinAsSecond(p);
-              setBusy(false);
               if (!r.ok) return setErr(r.error);
               setQr(JSON.stringify(r.qr));
               setStep('showSecond');
-            }} onCancel={() => setStep('role')} />
+            })} onCancel={() => setStep('role')} />
           </>
         )}
 
@@ -136,12 +145,19 @@ export function Codes({ onDone, change }: { onDone: () => void; change?: boolean
     const all = [calc, notes, decoy, panic].filter(Boolean);
     if (new Set(all).size !== all.length) return setErr('Every code must be different.');
     setBusy(true);
-    const c = await getCrypto();
-    await Vault.saveCodes({
-      calc: c.hashPasscode(calc), notes: c.hashPasscode(notes), decoy: c.hashPasscode(decoy), panic: panic ? c.hashPasscode(panic) : undefined,
-    });
-    setBusy(false);
-    onDone();
+    try {
+      // let the screen show "Saving…" before the (slow) hashing starts
+      await new Promise((r) => setTimeout(r, 50));
+      const c = await getCrypto();
+      await Vault.saveCodes({
+        calc: c.hashPasscode(calc), notes: c.hashPasscode(notes), decoy: c.hashPasscode(decoy), panic: panic ? c.hashPasscode(panic) : undefined,
+      });
+      onDone();
+    } catch (e) {
+      setErr('Something went wrong: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const field = (label: string, v: string, set: (s: string) => void, ph: string, numeric: boolean) => (
