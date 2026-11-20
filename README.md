@@ -24,6 +24,11 @@ a jump-to-latest button, and one round button that turns from a microphone into 
 |---|---|---|---|---|
 | <img src="docs/screenshots/chat-nocturne.png" width="170"> | <img src="docs/screenshots/chat-aurora.png" width="170"> | <img src="docs/screenshots/chat-glacier.png" width="170"> | <img src="docs/screenshots/chat-lemonade.png" width="170"> | <img src="docs/screenshots/chat-empty.png" width="170"> |
 
+### Days together, photo albums and stickers
+| Our days (shared with your partner) | Photos and albums | Stickers | A sticker in the chat |
+|---|---|---|---|
+| <img src="docs/screenshots/days.png" width="170"> | <img src="docs/screenshots/photos.png" width="170"> | <img src="docs/screenshots/stickers.png" width="170"> | <img src="docs/screenshots/chat-sticker.png" width="170"> |
+
 ### 33 themes
 The same chat in twelve of them:
 
@@ -64,6 +69,12 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 - Swipe to reply, reactions, edit and delete for both, search
 - Pinned messages (shown at the top), starred messages (private to your phone, with their own list)
 - Disappearing messages: off, 1 hour, 1 day or 1 week
+- **Days together**: set the day you started once and both phones count the same days. A ring shows progress to the next
+  milestone (50, 100, 200 ... 1000 and on), the years-months-days, and the next anniversary. "Day N" shows in the chat header.
+- **Photo albums**: every photo in one grid, plus albums you and your partner make together ("Trips", "Us"). Press and
+  hold a photo to choose its albums.
+- **Stickers**: 40 stickers in four packs (Love, Daily, Moods, Fun). They take the colours of your theme, and only a tiny
+  id is sent, so they cost no data.
 - Quick "thinking of you" heart
 - Voice notes (up to 2 minutes), encrypted like everything else
 - Pictures from the gallery or camera: shrunk, location removed, encrypted on the phone, pinch-to-zoom viewer,
