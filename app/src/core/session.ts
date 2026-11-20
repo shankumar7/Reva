@@ -11,7 +11,7 @@ import { getPushToken } from './push';
 import { CallEngine, callSummary } from './call';
 import { nativeRtc } from './rtcNative';
 import * as FileSystem from 'expo-file-system/legacy';
-import type JSZip from 'jszip';
+import { bytesToBase64, type ZipArchive } from './zipFile';
 import { IMAGE_EXT, attachmentLabel, findInZip, makeIds, type WaMessage } from './whatsapp';
 
 /** The queue of messages waiting to be sent. Kept in the encrypted database so it can be big (an imported chat). */
@@ -509,7 +509,7 @@ class Session {
    * (encrypted, in small batches) to your partner's phone, so both of you have the whole history.
    */
   async importWhatsApp(
-    parsed: WaMessage[], meName: string, zip: JSZip | null,
+    parsed: WaMessage[], meName: string, zip: ZipArchive | null,
     opts: { photos: boolean; share: boolean; sharePhotos: boolean },
     onProgress: (done: number, total: number, phase: string) => void,
   ): Promise<{ added: number; photos: number; skipped: number; shared: number }> {
@@ -534,24 +534,29 @@ class Session {
       const had = await Messages.exists(id);
       try {
         if (w.attachment && IMAGE_EXT.test(w.attachment) && opts.photos && zip && photos < 400) {
-          const f = findInZip(zip.file(/.*/).filter((x) => !x.dir), w.attachment);
-          if (f) {
-            const b64 = await f.async('base64');
-            const tmp = FileSystem.cacheDirectory + 'wa-' + i + '.jpg';
-            await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
-            const p = await Images.prepare(tmp, 0);
-            await FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
-            if (!had) {
-              const key = await Images.store(id, p.data);
-              await Messages.insert({ id, ts: w.ts, mine, kind: 'img', text: w.text, state: 3, seen: true, thumb: p.thumb, w: p.w, h: p.h, imgKey: key });
-              added++;
+          try {
+            const f = findInZip(zip.entries, w.attachment);
+            if (f) {
+              if (f.size > 40_000_000) throw new Error('picture too big');
+              const b64 = bytesToBase64(await zip.read(f));
+              const tmp = FileSystem.cacheDirectory + 'wa-' + i + '.jpg';
+              await FileSystem.writeAsStringAsync(tmp, b64, { encoding: FileSystem.EncodingType.Base64 });
+              const p = await Images.prepare(tmp, 0);
+              await FileSystem.deleteAsync(tmp, { idempotent: true }).catch(() => {});
+              if (!had) {
+                const key = await Images.store(id, p.data);
+                await Messages.insert({ id, ts: w.ts, mine, kind: 'img', text: w.text, state: 3, seen: true, thumb: p.thumb, w: p.w, h: p.h, imgKey: key });
+                added++;
+              }
+              photos++;
+              if (opts.share && opts.sharePhotos && this.client) {
+                this.client.send({ k: 'impimg', id, ts: w.ts, m: mine ? 1 : 0, text: w.text, data: p.data, thumb: p.thumb, w: p.w, h: p.h }, 'ii' + this.newId());
+                shared++;
+              }
+              continue;
             }
-            photos++;
-            if (opts.share && opts.sharePhotos && this.client) {
-              this.client.send({ k: 'impimg', id, ts: w.ts, m: mine ? 1 : 0, text: w.text, data: p.data, thumb: p.thumb, w: p.w, h: p.h }, 'ii' + this.newId());
-              shared++;
-            }
-            continue;
+          } catch {
+            /* this picture could not be read: keep the message as a text line instead */
           }
         }
         const text = w.deleted ? '[Deleted message]' : w.attachment ? (w.text ? w.text + '\n' : '') + attachmentLabel(w.attachment) : w.text;

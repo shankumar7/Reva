@@ -189,3 +189,41 @@ test('real export with media: file with spaces, photo with a long caption, empty
   assert.equal(r.messages[1].attachment, 'IMG-20260327-WA0019.jpg');
   assert.equal(r.messages[1].text, 'caption line 1\n\n📞 Contact: 9876501234');
 });
+
+test('a big zip is read piece by piece: table of contents, chat text and one photo', async () => {
+  const { default: JSZip } = await import('jszip');
+  const { openZip, decodeUtf8, bytesToBase64, base64ToBytes } = await import('../src/core/zipFile');
+  const { findInZip } = await import('../src/core/whatsapp');
+  const z = new JSZip();
+  const chat = '01/02/2024, 10:00 - A: IMG-1.jpg (file attached)\n01/02/2024, 10:01 - B: héllo 💜';
+  const photo = new Uint8Array(300_000).map((_, i) => (i * 7 + (i >> 5)) & 255); // not very compressible
+  z.file('WhatsApp Chat with B.txt', chat, { compression: 'DEFLATE' });
+  z.file('IMG-1.jpg', photo, { compression: 'STORE' });
+  z.file('IMG-2.jpg', new Uint8Array(50_000).fill(65), { compression: 'DEFLATE' });
+  const zip = await z.generateAsync({ type: 'uint8array', comment: 'x'.repeat(100) });
+  let bytesRead = 0;
+  const arch = await openZip(zip.length, async (pos, len) => { bytesRead += len; return zip.slice(pos, pos + len); });
+  assert.equal(arch.entries.length, 3);
+  const txt = arch.entries.find((e) => /\.txt$/.test(e.name))!;
+  assert.equal(decodeUtf8(await arch.read(txt)), chat);
+  const img = findInZip(arch.entries, 'img-1.JPG')!;
+  const back = await arch.read(img);
+  assert.equal(back.length, photo.length);
+  assert.ok(back.every((v, i) => v === photo[i]));
+  const small = await arch.read(findInZip(arch.entries, 'IMG-2.jpg')!);
+  assert.equal(small.length, 50_000);
+  // reading three pieces must not read the whole file twice over
+  assert.ok(bytesRead < zip.length * 2.2);
+  // base64 helpers round-trip at every length
+  for (const n of [0, 1, 2, 3, 4, 5, 1000, 12289]) {
+    const b = new Uint8Array(n).map((_, i) => (i * 31) & 255);
+    assert.deepEqual(base64ToBytes(bytesToBase64(b)), b);
+    assert.equal(bytesToBase64(b), Buffer.from(b).toString('base64'));
+  }
+});
+
+test('a file that is not a zip gives a plain error', async () => {
+  const { openZip } = await import('../src/core/zipFile');
+  const junk = new Uint8Array(500).fill(7);
+  await assert.rejects(() => openZip(junk.length, async (p, l) => junk.slice(p, p + l)), /zip/i);
+});

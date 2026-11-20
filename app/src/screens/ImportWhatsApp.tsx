@@ -3,7 +3,6 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import JSZip from 'jszip';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Body, Button, Clay, ClayPress, H1, Label, Switch } from '../ui/Clay';
 import { Backdrop } from '../ui/Backdrop';
@@ -12,8 +11,11 @@ import { parseWhatsApp, IMAGE_EXT, type WaParse } from '../core/whatsapp';
 import { session } from '../core/session';
 import { whileSystemUi } from '../core/lockGuard';
 import { useBackHandler } from '../core/backStack';
+import { openZipFile } from '../core/zipNative';
+import { decodeUtf8, type ZipArchive } from '../core/zipFile';
 
-type Loaded = { raw: string; zip: JSZip | null; name: string };
+type Loaded = { raw: string; zip: ZipArchive | null; name: string; uri: string };
+const dropCopy = (uri: string) => void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
 
 export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
   const t = useTheme();
@@ -30,7 +32,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
   const [err, setErr] = useState('');
   const [done, setDone] = useState<{ added: number; photos: number; skipped: number; shared: number } | null>(null);
 
-  useBackHandler(!!loaded && !done && !busy, () => { setLoaded(null); setErr(''); }, 1);
+  useBackHandler(!!loaded && !done && !busy, () => { if (loaded) dropCopy(loaded.uri); setLoaded(null); setErr(''); }, 1);
 
   const parsed: WaParse | null = useMemo(() => (loaded ? parseWhatsApp(loaded.raw, order === 'auto' ? undefined : order) : null), [loaded, order]);
   const photoCount = useMemo(() => (parsed ? parsed.messages.filter((m) => m.attachment && IMAGE_EXT.test(m.attachment)).length : 0), [parsed]);
@@ -43,19 +45,19 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
       const a = r.assets[0];
       setBusy('Reading the file…');
       const isZip = /\.zip$/i.test(a.name) || a.mimeType === 'application/zip' || a.mimeType === 'application/x-zip-compressed';
-      let raw: string, zip: JSZip | null = null;
+      let raw: string, zip: ZipArchive | null = null;
       if (isZip) {
-        const b64 = await FileSystem.readAsStringAsync(a.uri, { encoding: FileSystem.EncodingType.Base64 });
-        zip = await JSZip.loadAsync(b64, { base64: true });
-        const txt = zip.file(/\.txt$/i).sort((x, y) => (/_chat\.txt$/i.test(y.name) ? 1 : 0) - (/_chat\.txt$/i.test(x.name) ? 1 : 0))[0];
+        // opens the table of contents only; the pictures are read one at a time later
+        zip = await openZipFile(a.uri);
+        const txt = zip.entries.filter((x) => /\.txt$/i.test(x.name)).sort((x, y) => (/_chat\.txt$/i.test(y.name) ? 1 : 0) - (/_chat\.txt$/i.test(x.name) ? 1 : 0))[0];
         if (!txt) throw new Error('No chat text file inside that zip.');
-        raw = await txt.async('string');
+        raw = decodeUtf8(await zip.read(txt));
       } else {
         raw = await FileSystem.readAsStringAsync(a.uri);
       }
       const p = parseWhatsApp(raw);
       if (!p.messages.length) throw new Error('No WhatsApp messages found in that file.');
-      setLoaded({ raw, zip, name: a.name });
+      setLoaded({ raw, zip, name: a.name, uri: a.uri });
       setMe(p.senders[0] ?? '');
       setOrder('auto');
     } catch (e) {
@@ -72,6 +74,7 @@ export function ImportWhatsApp({ onBack }: { onBack: () => void }) {
     try {
       const r = await session.importWhatsApp(parsed.messages, me, loaded.zip, { photos, share, sharePhotos: share && sharePhotos }, (d, tot, ph) => { setProgress([d, tot]); setPhase(ph); });
       setDone(r);
+      dropCopy(loaded.uri); // the copy the file picker made is no longer needed
     } catch (e) {
       setErr('Import stopped: ' + (e instanceof Error ? e.message : String(e)));
     } finally {

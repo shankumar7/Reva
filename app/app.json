@@ -2,14 +2,14 @@
   "expo": {
     "name": "Tools",
     "slug": "utilkit",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.utilkit.tools",
-      "versionCode": 9,
+      "versionCode": 10,
       "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#2B3445",
