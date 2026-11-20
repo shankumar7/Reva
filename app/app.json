@@ -34,7 +34,10 @@
         {
           "android": {
             "minSdkVersion": 26,
-            "usesCleartextTraffic": false
+            "usesCleartextTraffic": false,
+            "useLegacyPackaging": true,
+            "enableBundleCompression": true,
+            "enablePngCrunchInReleaseBuilds": true
           }
         }
       ],
