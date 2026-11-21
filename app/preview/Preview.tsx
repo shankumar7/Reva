@@ -40,7 +40,7 @@ const SAMPLE: Msg[] = [
   m({ id: '4', mine: false, ago: 94, text: 'Slept so well. You?' }),
   m({ id: '5', mine: true, ago: 90, text: 'Like a rock. Coffee later?', rTheirs: '❤️', pinned: true }),
   m({ id: '6', mine: false, ago: 40, kind: 'img', thumb: SAMPLE_THUMB, w: 240, h: 160, text: 'Look at this view' }),
-  m({ id: '7', mine: true, ago: 38, text: 'Wow. Take me there', replyTo: '6', state: 2 }),
+  m({ id: '7', mine: true, ago: 38, text: 'Wow. Take me there', replyTo: '6', state: 3 }),
   m({ id: '8', mine: false, ago: 20, kind: 'aud', w: 23 }),
   m({ id: '9', mine: true, ago: 5, text: 'On my way', state: 1, starred: true }),
   m({ id: '10', mine: true, ago: 1, text: 'Almost there…', state: 0 }),

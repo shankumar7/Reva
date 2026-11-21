@@ -95,7 +95,9 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
   an explicit **Save to gallery** button (default off, switchable), and **view once**
 - Shared notes you both see and edit (newest edit wins)
 - Day separators, grouped bubbles, animated typing dots
-- Delivery shown as one quiet line under your newest message (Sending, Sent, Delivered, Seen) instead of ticks on every bubble
+- WhatsApp-style ticks on every message you send: one grey tick = sent, two grey = delivered, two **blue** = read
+- Easy replies: swipe a message to the right (a reply arrow appears, the phone buzzes at the right spot) or press and hold,
+  and the keyboard opens at once with a clear "Replying to ..." bar above the box
 
 **Bring your old chat**
 - **Import a WhatsApp chat** from "Export chat" (text, or zip with photos). Handles Android and iPhone layouts,

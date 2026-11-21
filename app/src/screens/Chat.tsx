@@ -15,6 +15,7 @@ import { Icon } from '../ui/Icon';
 import { Backdrop } from '../ui/Backdrop';
 import { fonts, useTheme } from '../theme';
 import { contrast, luminance } from '../colors';
+import Svg, { Path } from 'react-native-svg';
 import { whileSystemUi } from '../core/lockGuard';
 import { useBackHandler } from '../core/backStack';
 import { Enter, EASE } from '../ui/motion';
@@ -63,6 +64,8 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
   const chat = useChat();
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
+  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const startReply = (m: Msg) => { setReplyTo(m); setEditing(null); setTimeout(() => inputRef.current?.focus(), 60); };
   const [editing, setEditing] = useState<Msg | null>(null);
   const [menu, setMenu] = useState<Msg | null>(null);
   const [searching, setSearching] = useState(false);
@@ -113,8 +116,6 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
     [chat.messages, searchMode, found, clock],
   );
   const pinned = useMemo(() => [...chat.messages].reverse().find((m) => m.pinned && !m.deleted), [chat.messages]);
-  // the delivery status is shown once, under your newest message, instead of ticks on every bubble
-  const lastMineId = useMemo(() => [...chat.messages].reverse().find((m) => m.mine && !m.deleted)?.id, [chat.messages]);
 
   // with the keyboard up the composer sits right on it; with it down it clears the phone's bottom bar
   const [kb, setKb] = useState(false);
@@ -299,8 +300,8 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
                 <Clay radius={12} depth={0.4} style={{ paddingHorizontal: 12, paddingVertical: 4 }}><Label>{item.label}</Label></Clay>
               </View>
             ) : (
-              <Bubble m={item.m} first={item.first} last={item.last} status={!searchMode && item.id === lastMineId} flash={flash === item.id} quoted={item.m.replyTo ? byId.get(item.m.replyTo) : undefined}
-                onReply={() => setReplyTo(item.m)} onMenu={() => setMenu(item.m)} onOpen={() => setViewer(item.m)} onQuote={() => item.m.replyTo && jumpTo(item.m.replyTo)} />
+              <Bubble m={item.m} first={item.first} last={item.last} flash={flash === item.id} quoted={item.m.replyTo ? byId.get(item.m.replyTo) : undefined}
+                onReply={() => startReply(item.m)} onMenu={() => setMenu(item.m)} onOpen={() => setViewer(item.m)} onQuote={() => item.m.replyTo && jumpTo(item.m.replyTo)} />
             )
           }
         />
@@ -317,10 +318,11 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
       {err ? <Text style={{ color: t.danger, fontFamily: fonts.medium, marginHorizontal: 18, marginBottom: 6 }}>{err}</Text> : null}
       {(replyTo || editing) && (
         <Animated.View entering={FadeInDown.duration(160)} style={{ marginHorizontal: 16, marginBottom: 6 }}>
-          <Clay radius={16} style={{ padding: 10, flexDirection: 'row', alignItems: 'center' }}>
+          <Clay radius={18} style={{ paddingVertical: 8, paddingRight: 10, paddingLeft: 0, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
+            <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: t.accent, borderRadius: 2, marginLeft: 10, marginRight: 10 }} />
             <View style={{ flex: 1 }}>
-              <Label>{editing ? 'Editing' : 'Replying'}</Label>
-              <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.body }}>{(editing ?? replyTo)!.kind === 'img' ? 'Photo' : (editing ?? replyTo)!.kind === 'stk' ? 'Sticker' : (editing ?? replyTo)!.text}</Text>
+              <Text style={{ color: t.accent, fontFamily: fonts.bold, fontSize: 12 }}>{editing ? 'Editing your message' : (replyTo!.mine ? 'Replying to yourself' : 'Replying to ' + nickname)}</Text>
+              <Text numberOfLines={1} style={{ color: t.text, fontFamily: fonts.body, opacity: 0.85 }}>{(editing ?? replyTo)!.kind === 'img' ? 'Photo' : (editing ?? replyTo)!.kind === 'aud' ? 'Voice note' : (editing ?? replyTo)!.kind === 'stk' ? 'Sticker' : (editing ?? replyTo)!.text}</Text>
             </View>
             <Pressable hitSlop={12} onPress={() => { setReplyTo(null); setEditing(null); if (editing) setText(''); }}><Icon name="x" size={18} color={t.textDim} /></Pressable>
           </Clay>
@@ -349,7 +351,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
               {sending ? <ActivityIndicator color={t.accent} /> : <Icon name="plus" size={22} color={t.text} />}
             </Pressable>
             {/* one line is exactly as tall as the box; longer text grows it, then scrolls inside */}
-            <TextInput value={text} multiline numberOfLines={1} scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
+            <TextInput ref={inputRef} value={text} multiline numberOfLines={1} scrollEnabled placeholder="Message" placeholderTextColor={t.textDim}
               onChangeText={(v) => { setText(v); if (v) session.typing(true); }}
               style={{ flex: 1, color: t.text, fontFamily: fonts.body, fontSize: 16, lineHeight: 22, paddingTop: 13, paddingBottom: 13, paddingLeft: 4, minHeight: 48, maxHeight: 150, textAlignVertical: 'center', includeFontPadding: false }} />
             {/* pictures one tap away, like WhatsApp: they step aside while you type */}
@@ -381,7 +383,7 @@ export function Chat({ nickname, ttlSeconds, since, onSettings, onNotes, onStarr
       <StickerSheet open={stickers} onClose={() => setStickers(false)} onPick={(sid) => { setStickers(false); if (chat.ready) void session.sendSticker(sid, replyTo?.id); else setErr('Still starting up. Try again in a moment.'); setReplyTo(null); }} />
       <AlbumSheet msgId={albumFor} onClose={() => setAlbumFor(null)} />
       <ActionMenu m={menu} onClose={() => setMenu(null)}
-        onReply={(m) => { setReplyTo(m); setEditing(null); }}
+        onReply={(m) => startReply(m)}
         onEdit={(m) => { setEditing(m); setReplyTo(null); setText(m.text); }}
         onAlbum={(id) => setAlbumFor(id)} />
       <ImageViewer id={viewer?.id ?? null} once={!!viewer?.once} mine={!!viewer?.mine} onClose={() => setViewer(null)} />
@@ -504,19 +506,19 @@ function TypingDots() {
   );
 }
 
-function Bubble({ m, first, last, status, quoted, flash, onReply, onMenu, onOpen, onQuote }: {
-  m: Msg; first: boolean; last: boolean; status?: boolean; quoted?: Msg; flash?: boolean; onReply: () => void; onMenu: () => void; onOpen: () => void; onQuote: () => void;
+function Bubble({ m, first, last, quoted, flash, onReply, onMenu, onOpen, onQuote }: {
+  m: Msg; first: boolean; last: boolean; quoted?: Msg; flash?: boolean; onReply: () => void; onMenu: () => void; onOpen: () => void; onQuote: () => void;
 }) {
   const t = useTheme();
   const x = useRef(new RNAnimated.Value(0)).current;
   const fired = useRef(false);
   const pan = useMemo(
     () => PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onMoveShouldSetPanResponder: (_, g) => g.dx > 8 && g.dx > Math.abs(g.dy) * 1.5,
       onPanResponderMove: (_, g) => {
-        const dx = Math.max(0, Math.min(g.dx, 70));
+        const dx = Math.max(0, Math.min(g.dx * 0.8, 64)); // follows your finger, a little softer
         x.setValue(dx);
-        if (dx > 56 && !fired.current) { fired.current = true; Haptics.selectionAsync().catch(() => {}); }
+        if (dx > 42 && !fired.current) { fired.current = true; Haptics.selectionAsync().catch(() => {}); }
       },
       onPanResponderRelease: () => {
         if (fired.current) onReply();
@@ -559,6 +561,7 @@ function Bubble({ m, first, last, status, quoted, flash, onReply, onMenu, onOpen
           {!m.text && (
             <View style={{ position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 }}>
               <Text style={{ color: '#FFFFFF', fontSize: 10, fontFamily: fonts.medium }}>{time}</Text>
+              {mine && <Ticks state={m.state} bg="#262626" fg="#FFFFFF" />}
             </View>
           )}
         </View>
@@ -569,7 +572,7 @@ function Bubble({ m, first, last, status, quoted, flash, onReply, onMenu, onOpen
 
   return (
     <Animated.View entering={FadeInDown.duration(200)} style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginTop: first ? 8 : 2 }}>
-      <RNAnimated.View pointerEvents="none" style={{ position: 'absolute', left: 10, top: '38%', opacity: x.interpolate({ inputRange: [0, 50], outputRange: [0, 1], extrapolate: 'clamp' }), transform: [{ scale: x.interpolate({ inputRange: [0, 56], outputRange: [0.6, 1], extrapolate: 'clamp' }) }] }}>
+      <RNAnimated.View pointerEvents="none" style={{ position: 'absolute', left: 10, top: '38%', opacity: x.interpolate({ inputRange: [0, 36], outputRange: [0, 1], extrapolate: 'clamp' }), transform: [{ scale: x.interpolate({ inputRange: [0, 44], outputRange: [0.6, 1.1], extrapolate: 'clamp' }) }] }}>
         <Icon name="reply" size={20} color={t.accent} />
       </RNAnimated.View>
       <RNAnimated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }], maxWidth: '84%' }}>
@@ -590,13 +593,14 @@ function Bubble({ m, first, last, status, quoted, flash, onReply, onMenu, onOpen
             ) : m.kind === 'aud' ? <VoiceBody m={m} color={fg} /> : isImg ? imageBody() : (
               <Linkified text={m.text} color={fg} />
             )}
-            {(last || m.deleted || (isImg && (m.once || !!m.text))) && (
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 3, paddingRight: isImg && !m.once ? 6 : 0 }}>
+            {true && (
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 5, marginTop: 2, paddingRight: isImg && !m.once ? 6 : 0 }}>
                 {m.edited && !m.deleted && <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>edited</Text>}
                 {m.pinned && !m.deleted && <Icon name="pin" size={10} color={fg} />}
                 {m.starred && <Icon name="star" size={10} color={fg} />}
                 {m.exp > 0 && <Icon name="timer" size={10} color={fg} />}
-                <Text style={{ color: fg, opacity: 0.55, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>
+                <Text style={{ color: fg, opacity: 0.6, fontSize: 10, fontFamily: fonts.body }}>{time}</Text>
+                {mine && !m.deleted && <Ticks state={m.state} bg={bg} fg={fg} />}
               </View>
             )}
           </Clay>
@@ -610,21 +614,21 @@ function Bubble({ m, first, last, status, quoted, flash, onReply, onMenu, onOpen
         </Pressable>
       </RNAnimated.View>
       {(m.rMine || m.rTheirs) && <View style={{ height: 10 }} />}
-      {status && mine && <StatusLine state={m.state} />}
     </Animated.View>
   );
 }
 
-/** One quiet line under your newest message: Sending, Sent, Delivered or Seen. */
-function StatusLine({ state }: { state: number }) {
-  const t = useTheme();
-  const label = state === 0 ? 'Sending' : state === 1 ? 'Sent' : state === 2 ? 'Delivered' : 'Seen';
-  const seen = state >= 3;
+/** WhatsApp-style ticks: one grey tick = sent, two grey = delivered, two blue = read. */
+const TICK_BLUES = ['#53BDEB', '#2A9BE0', '#1478C8', '#0B5FA5'];
+function Ticks({ state, bg, fg }: { state: number; bg: string; fg: string }) {
+  const blue = TICK_BLUES.find((c) => contrast(c, bg) >= 3) ?? TICK_BLUES.reduce((best, c) => (contrast(c, bg) > contrast(best, bg) ? c : best));
+  const read = state >= 3;
+  const color = read ? blue : fg;
+  if (state === 0) return <Icon name="timer" size={11} color={fg} />; // still waiting to leave this phone
   return (
-    <Animated.View key={label} entering={FadeIn.duration(220)} style={{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5, marginRight: 6 }}>
-      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: seen ? t.accent : 'transparent', borderWidth: seen ? 0 : 1.5, borderColor: t.textDim, opacity: state === 0 ? 0.6 : 1 }} />
-      <Text style={{ color: seen ? t.accent : t.textDim, fontFamily: seen ? fonts.bold : fonts.medium, fontSize: 11, letterSpacing: 0.3 }}>{label}</Text>
-    </Animated.View>
+    <Svg width={17} height={12} viewBox="0 0 18 12" fill="none" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" opacity={read ? 1 : 0.7}>
+      {state === 1 ? <Path d="M2 6.5l3.6 3.6L12 2" /> : (<><Path d="M1.5 6.5l3.6 3.6L11 2.5" /><Path d="M7.4 9.9l.9.9L15.8 2.4" /></>)}
+    </Svg>
   );
 }
 
