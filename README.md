@@ -10,6 +10,9 @@ own themes. Your server, your keys, your data. There are no accounts, no phone n
 
 ![Setup, chat, scientific calculator, an incoming call dressed as an alarm](docs/screenshots/overview.png)
 
+[![Watch the 20-second intro](docs/media/reva-intro.jpg)](docs/media/reva-intro.mp4)
+*Click the picture to watch the 20-second intro.*
+
 > **Status:** an early, personal project, built for one couple and shared as it is. It is **not independently audited**
 > and has been tried on a small number of real phones. Read [Security](#security) and [Honest status](#honest-status)
 > before trusting it with anything that matters.
@@ -277,6 +280,10 @@ Release builds are signed with a private key kept **outside** this repository.
 
 Bug reports and ideas are welcome as GitHub issues. This is a personal project, so replies may take a while. Please do
 not post real chats, screenshots of your own app, server addresses or setup codes in issues.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE). The authors give no warranty; see "Security" and "Honest status" above.
 
 ## Credits
 
