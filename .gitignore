@@ -26,3 +26,9 @@ android/.gradle/
 *.log
 .DS_Store
 *.tar.gz
+
+# Local tooling, never part of the project
+.agents/
+.claude/
+skills-lock.json
+brag-output/
