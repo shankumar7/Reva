@@ -11,7 +11,7 @@ plain like "Calculator: Tap to open". It never carries a name, a message or a pi
 1. In the project, click the Android icon (**Add app**).
 2. **Android package name:** `com.utilkit.tools` (exactly this).
 3. Click **Register app**, then **Download google-services.json**.
-4. Send that file to Claude in the chat. (It is not committed to GitHub; it is only used to build the app.)
+4. Keep that file in `app/` when you build the app (it is git-ignored, never commit it).
 5. You can skip the other steps on that page.
 
 ## 3. Get the server key
@@ -28,7 +28,7 @@ scp -i ~/KEYFILE ~/NAME-OF-THE-DOWNLOADED-FILE.json ubuntu@SERVER_IP:~/fcm.json 
    `ssh -i ~/KEYFILE ubuntu@SERVER_IP "sudo docker logs reva | tail -3"`
 
 ## 4. Install the new app build
-Claude builds the app with your `google-services.json` and sends you the APK. Install it on both phones.
+Build the app with your `google-services.json` in `app/` (see the README) and install the APK on both phones.
 Open the chat once on each phone and allow notifications when Android asks.
 
 ## Notes

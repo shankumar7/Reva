@@ -50,7 +50,7 @@ show_result() {
   echo " State:      ${state:-unknown}"
   echo " Public IP:  ${ip:-not shown yet, look on the instance page}"
   echo "=========================================================="
-  echo "Send the Public IP to Claude. Next: your DuckDNS name, then the install command."
+  echo "Next: point a DuckDNS name at the Public IP, then run the install command in docs/SERVER-SETUP.md."
 }
 
 ID="$(existing_server)"
@@ -127,7 +127,7 @@ while true; do
       sleep 20
     else
       echo "$OUT" | tail -n 12
-      die "Oracle gave an error I do not recognise (shown above). Send it to Claude."
+      die "Oracle gave an error I do not recognise (shown above). Please report it as an issue (without any secrets)."
     fi
   done
   say "Next try in $((WAIT_BETWEEN_TRIES / 60)) minutes. Leave this running. (Cloud Shell: press Enter now and then.)"

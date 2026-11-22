@@ -32,3 +32,4 @@ android/.gradle/
 .claude/
 skills-lock.json
 brag-output/
+app/.claude/

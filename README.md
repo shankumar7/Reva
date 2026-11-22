@@ -2,9 +2,53 @@
 
 <img src="docs/screenshots/app-icon.png" width="96" align="right">
 
-A private, end-to-end encrypted chat for two people. On the phone it looks like an ordinary utility app
-(Calculator, Notes and more). Reva's name never appears on the phone. Everything it uses is free:
-Oracle's Always Free server, DuckDNS, Let's Encrypt, Firebase's free push, and your own Google Drive.
+**A private, end-to-end encrypted chat for exactly two people, that looks like an ordinary phone utility.**
+
+On the home screen it is a Calculator (or Notes, Clock, Weather and more). Type your secret code and press `=`, and it opens
+your private chat with a partner: messages, photos, voice notes, voice calls, shared notes, albums, stickers and your
+own themes. Your server, your keys, your data. There are no accounts, no phone numbers, no ads and no analytics.
+
+![Setup, chat, scientific calculator, an incoming call dressed as an alarm](docs/screenshots/overview.png)
+
+> **Status:** an early, personal project, built for one couple and shared as it is. It is **not independently audited**
+> and has been tried on a small number of real phones. Read [Security](#security) and [Honest status](#honest-status)
+> before trusting it with anything that matters.
+
+## Why Reva
+
+- **Two people, one server you own.** The server accepts exactly two device keys. It only passes sealed messages along and
+  cannot read them. It runs free forever on Oracle's Always Free tier (a Raspberry Pi or any small Linux box works too).
+- **It hides in plain sight.** Calculator, Notes, Clock, Weather, Files, Compass, Calendar or Music icon and name; a real,
+  working scientific calculator; a decoy code that opens a fake empty chat; a wipe code that erases the phone.
+- **Free.** Oracle Always Free, DuckDNS, Let's Encrypt, Firebase's free push and your own Google Drive for backups.
+- **Made to feel good.** Soft "clay" design, 33 themes, WhatsApp-style ticks, swipe to reply, an alarm-clock call screen.
+
+## How it works
+
+```
+ phone A  ──(sealed with phone B's key)──▶  your server  ──▶  phone B
+  │            the server sees sizes and timing only             │
+  └────────────  voice calls go phone to phone (WebRTC)  ────────┘
+                 through your own relay only if the networks block that
+```
+
+1. One phone starts a private space on your server and shows a QR code. The other phone scans it. Done: the server
+   now accepts only those two keys.
+2. Every message, picture, voice note and call setup is encrypted on the sending phone (X25519 + XSalsa20-Poly1305,
+   libsodium-compatible) and can only be opened by the other phone.
+3. The phone's own database is encrypted too, and the secret keys live in the Android Keystore.
+
+## Get your own
+
+You need: an Android phone each, a free Oracle Cloud account (or any small Linux server), and a free DuckDNS name.
+No coding needed to install; the steps are written for non-technical people.
+
+1. **Server:** follow [`docs/SERVER-SETUP.md`](docs/SERVER-SETUP.md). One command installs everything (Docker, HTTPS, the chat
+   server and the call relay). No Oracle capacity? See [`docs/ORACLE-ON-PI.md`](docs/ORACLE-ON-PI.md).
+2. **App:** build the APK yourself (see [Build the Android app](#build-the-android-app)), or ask whoever runs your server
+   to. There is no hosted service and no central app store listing.
+3. **Push notifications (optional, free):** [`docs/PUSH-SETUP.md`](docs/PUSH-SETUP.md).
+4. **Pair:** first phone "I am starting", second phone scans its QR code. Compare the **safety number** in Settings.
 
 ## Screenshots
 
@@ -154,17 +198,31 @@ To make them again: `cd app && EXPO_PUBLIC_PREVIEW=1 npx expo export --platform 
 **Updates**
 - Settings has a **Check for updates** button that downloads a newer app from your own server.
 
-## Security design
+## Security
 
-- libsodium-compatible crypto. Each phone has one 32-byte secret; signing and encryption keys come from it.
-- Messages use `crypto_box`-style encryption (X25519 + XSalsa20-Poly1305). Typing, receipts, edits, deletes,
-  reactions, pictures and voice notes are all inside the encrypted envelope. The server sees only sizes and timing.
-- Phones log in by signing a fresh challenge with their device key. No passwords.
-- Exactly two device keys are ever accepted. Pairing is by QR code on both phones (camera or gallery picture).
-- The phone's database is encrypted (SQLCipher); keys live in the Android Keystore-backed secure store.
-  Passcodes are stored only as slow salted hashes.
-- Failed logins are rate limited and blocked. No analytics. No message content in any log.
-- Compare the **safety number** in Settings on both phones. If it differs, the pairing was tampered with.
+What it protects, and what it does not:
+
+- **End-to-end encryption.** Messages, pictures, voice notes, edits, reactions, receipts and call setup are sealed on
+  the phone with libsodium-compatible crypto (X25519 + XSalsa20-Poly1305). Each phone has one 32-byte secret from which
+  the signing and encryption keys are derived.
+- **No passwords, no accounts.** Phones log in by signing a fresh challenge with their device key. Exactly two device keys
+  are ever accepted. Failed logins are rate limited and blocked. No analytics, no message content in any log.
+- **Safety number.** Compare it in Settings on both phones; if it differs, the pairing was tampered with.
+- **On the phone.** The database is encrypted (SQLCipher), keys sit in the Android Keystore-backed secure store, passcodes
+  are stored only as slow salted hashes, the app locks itself when you leave and hides its picture in the recent-apps list.
+  View-once pictures cannot be screenshotted.
+- **Calls.** Voice goes phone to phone (WebRTC, encrypted with DTLS-SRTP). If the networks block that, it goes through your
+  own coturn relay, which only forwards encrypted packets and uses short-lived logins.
+- **Not protected:** a phone that is unlocked in someone's hand; a phone with malware; the fact that two devices talk to
+  your server (the server sees sizes and timing); Android's own backups of other apps. The disguise is meant to stop a
+  casual look, not a forensic examination.
+- **Not audited.** The cryptography is built from well-known libraries, and automated tests compare it with real
+  libsodium, but nobody independent has reviewed this code. Please do not rely on it for anything life-critical.
+
+**Found a vulnerability?** Please read [`SECURITY.md`](SECURITY.md) and report it privately.
+
+**Never commit secrets** if you fork this: signing keys, `google-services.json`, Firebase service-account files, server
+`.env` files, setup codes and pairing QR codes. The `.gitignore` already blocks the usual ones.
 
 ## Folders
 
@@ -205,18 +263,25 @@ Release builds are signed with a private key kept **outside** this repository.
 
 ## Honest status
 
-Voice calls are new and have **not been tried on two real phones yet** (the background call service and the alarm wake-up are untested too): the call logic is tested with fake connections, and the
-relay login is tested, but the real audio, the microphone, the speaker switch and the relay need a real test.
-Calls need the Oracle security list to allow **UDP 3478, TCP 3478 and UDP 49160-49200** (see `docs/SERVER-SETUP.md`).
+- Tested by automated tests (56 on the app, 25 on the server): encryption, pairing rules, delivery, receipts, offline
+  queue, reconnect, large pictures through the server, backup file, push wake-up (against a fake Firebase), the WhatsApp
+  parser, the database upgrade, the phone crypto against real libsodium, the call logic with fake connections.
+- Tried on real phones by the author: pairing, messaging, themes, the disguise, photos.
+- **Not yet verified on two real phones:** voice call audio quality, the call relay, calls in the background, Bluetooth
+  headset routing, push notifications, and importing very large WhatsApp exports (a memory crash on big zips was fixed but not re-tested). They are built and unit tested, and
+  they may have bugs. Issues and reports are welcome.
+- Android only. There is no iPhone version.
+- Calls need the Oracle security list to allow **UDP 3478, TCP 3478 and UDP 49160-49200** (see `docs/SERVER-SETUP.md`).
 
-Tested by automated tests: encryption, pairing rules, delivery, receipts, offline queue, reconnect,
-large pictures through the server, backup file, push wake-up (against a fake Firebase), the WhatsApp parser,
-the database upgrade, the phone crypto against real libsodium.
+## Contributing
 
-Written and built, but only checked by hand on a phone as far as you have tried them: the screens, QR scanning,
-launcher icon switching, screenshot blocking, the update installer, picture and voice handling, backup
-and restore, import of a real WhatsApp export, push on a real phone. Android launchers can take a few seconds
-to show a new icon or name after switching.
+Bug reports and ideas are welcome as GitHub issues. This is a personal project, so replies may take a while. Please do
+not post real chats, screenshots of your own app, server addresses or setup codes in issues.
+
+## Credits
+
+Built with Expo / React Native, libsodium and tweetnacl, SQLCipher, react-native-webrtc, coturn, Caddy and Node.js.
+Design inspired by claymorphism. WhatsApp is a trademark of its owner; Reva is not affiliated with or endorsed by WhatsApp or Meta.
 
 ## Server hosting notes
 

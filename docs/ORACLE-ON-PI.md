@@ -26,7 +26,7 @@ You need a Pi that stays on and online (64-bit Raspberry Pi OS or Ubuntu).
    nohup bash oracle-get-server.sh > ~/reva-oracle.log 2>&1 &
    ```
    Close the terminal if you like. Look at progress any time: `tail -n 20 ~/reva-oracle.log`
-4. When the log says **YOUR SERVER IS READY** it shows the public IP. Send that IP to Claude.
+4. When the log says **YOUR SERVER IS READY** it shows the public IP. Note the public IP: it is your server address.
    Stop the script early with `pkill -f oracle-get-server`. It never makes two servers.
 
 Notes: keep the Pi's power and internet on. The private SSH key is saved at `~/reva_key` on the Pi: keep it,
